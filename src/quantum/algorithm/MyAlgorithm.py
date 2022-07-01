@@ -29,7 +29,6 @@ class MyAlgorithm(AlgorithmBase):
         self.name = "My"
         self.r = 40                     # 暫存回合
         self.givenShortestPath = {}     # {(src, dst): path, ...}               path表
-        # self.socialRelationship = {}  # {Node : [Node, ...], ...}             node-social表
         self.requestState = {}          # {(src, dst, timeslot) : RequestInfo}  request表 
         self.totalTime = 0
         self.totalUsedQubits = 0
@@ -45,7 +44,7 @@ class MyAlgorithm(AlgorithmBase):
         self.community4 = [0 for _ in range(20)]                                        # 1.00
         self.community = {0.25 : self.community1, 0.50 : self.community2, 0.75 : self.community3, 1.00 : self.community4}
 
-        self.socialRelationship = {node: [] for node in self.topo.nodes}
+        self.socialRelationship = {node: [] for node in self.topo.nodes}    # node-social表
         print("[MyAlgo] Construct path")
         self.establishShortestPath()
         print("[MyAlgo] Construct social relationship")
@@ -234,13 +233,7 @@ class MyAlgorithm(AlgorithmBase):
     def prepare(self):
         self.requestState.clear()
         self.totalTime = 0
-        # if len(self.givenShortestPath) == 0:
-        #     self.socialRelationship = {node: [] for node in self.topo.nodes}
-        #     self.establishShortestPath()
-        #     self.genSocialRelationship()
-        # self.givenShortestPath.clear()
-        # self.socialRelationship.clear()
-        
+    
     # p2 第2次篩選
     def p2Extra(self):
 
@@ -377,7 +370,7 @@ class MyAlgorithm(AlgorithmBase):
                 break
         # while end
 
-    def resetFailedRequestFor01(self, requestInfo, usedLinks):      # 第一段傳失敗
+    def resetFailedRequestFor1(self, requestInfo, usedLinks):      # 第一段傳失敗
         # for link in usedLinks:
         #     link.clearPhase4Swap()
         
@@ -508,7 +501,6 @@ class MyAlgorithm(AlgorithmBase):
             if requestInfo.taken == False:
                 self.result.idleTime += 1
 
-
     # p4 & p5
     def p4(self):
         
@@ -582,13 +574,13 @@ class MyAlgorithm(AlgorithmBase):
             # failed
             if success == 0 and len(p) != 2:
                 if requestInfo.state == 0 or requestInfo.state == 1:    # 0, 1
-                    self.resetFailedRequestFor01(requestInfo, usedLinks)
+                    self.resetFailedRequestFor1(requestInfo, usedLinks)
                 elif requestInfo.state == 2:                            # 2
                     requestInfo.savetime += 1
                     if requestInfo.savetime > self.r:   # 超出k儲存時間 重頭送 重設req狀態
                         self.resetFailedRequestFor2(requestInfo, usedLinks)
                     else:
-                        self.resetFailedRequestFor01(requestInfo, usedLinks)
+                        self.resetFailedRequestFor1(requestInfo, usedLinks)
                 continue
             
             # succeed

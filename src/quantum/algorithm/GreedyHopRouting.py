@@ -3,7 +3,7 @@ sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
 from MyAlgorithm import MyAlgorithm
 from OnlineAlgorithm import OnlineAlgorithm
-from GreedyGeographicRouting import GreedyGeographicRouting
+from FIR import FIR
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
@@ -113,7 +113,7 @@ class GreedyHopRouting(AlgorithmBase):
                     break               
             if not pick:
                 self.result.idleTime += 1
-        print('[Greedy_H] p2 end')
+        print('[', self.name, '] p2 end')
     
     def p4(self):
         for path in self.pathsSortedDynamically:
@@ -139,23 +139,20 @@ class GreedyHopRouting(AlgorithmBase):
                         nextLinks.append(link)
                         w -= 1
 
-                if prevLinks == None or nextLinks == None:
+                if len(prevLinks) == 0 or len(nextLinks) == 0:
                     break
 
                 for (l1, l2) in zip(prevLinks, nextLinks):
                     curr.attemptSwapping(l1, l2)
 
-            print('----------------------')
-            print('path:', [x.id for x in p])
             succ = len(self.topo.getEstablishedEntanglements(p[0], p[-1])) - oldNumOfPairs
         
             if succ > 0 or len(p) == 2:
-                print('finish time:', self.timeSlot - time)
+                # print('finish time:', self.timeSlot - time)
                 find = (p[0], p[-1], time)
                 if find in self.requests:
                     self.totalTime += self.timeSlot - time
                     self.requests.remove(find)
-            print('----------------------')
 
         remainTime = 0
         for req in self.requests:
@@ -167,9 +164,10 @@ class GreedyHopRouting(AlgorithmBase):
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
-        print('[Greedy_H] waiting time:', self.result.waitingTime)
-        print('[Greedy_H] idle time:', self.result.idleTime)
-        print('[Greedy_H] p4 end')
+        print('[', self.name, '] waiting time:', self.result.waitingTime)
+        print('[', self.name, '] idle time:', self.result.idleTime)
+        print('[', self.name, '] p4 end')
+
 
         return self.result
         
@@ -180,7 +178,7 @@ if __name__ == '__main__':
     
     a1 = GreedyHopRouting(topo)
     # a2 = MyAlgorithm(topo)
-    # a3 = GreedyGeographicRouting(topo)
+    a3 = FIR(topo)
     a4 = OnlineAlgorithm(topo)
     # samplesPerTime = 2
 
@@ -229,7 +227,7 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 4
+    samplesPerTime = 2
     ttime = 100
     rtime = 10
     requests = {i : [] for i in range(ttime)}
@@ -241,7 +239,10 @@ if __name__ == '__main__':
                 requests[i].append((a[n], a[n+1]))
 
     for i in range(ttime):
-        t3 = a4.work(requests[i], i)
+        t4 = a4.work(requests[i], i)
     
     for i in range(ttime):
         t1 = a1.work(requests[i], i)
+
+    for i in range(ttime):
+        t3 = a3.work(requests[i], i)
