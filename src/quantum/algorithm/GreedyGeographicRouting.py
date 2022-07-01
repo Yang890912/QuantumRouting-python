@@ -13,6 +13,7 @@ class GreedyGeographicRouting(AlgorithmBase):
         self.pathsSortedDynamically = []
         self.requests = []
         self.totalTime = 0
+        self.totalNumOfReq = 0
         self.name = "Greedy_G"
 
     def prepare(self):
@@ -24,6 +25,7 @@ class GreedyGeographicRouting(AlgorithmBase):
 
         for req in self.srcDstPairs:
             (src, dst) = req
+            self.totalNumOfReq += 1
             self.requests.append((src, dst, self.timeSlot))
 
         while True:
@@ -154,8 +156,8 @@ class GreedyGeographicRouting(AlgorithmBase):
             remainTime += self.timeSlot - req[2]
 
         self.topo.clearAllEntanglements()                     
-        self.result.waitingTime = self.totalTime + remainTime
-
+        self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
+        
         print('[Greedy_G] waiting time:', self.result.waitingTime)
         print('[Greedy_G] idle time:', self.result.idleTime)
         print('[Greedy_G] p4 end')
