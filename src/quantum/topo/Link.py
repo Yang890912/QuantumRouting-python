@@ -10,7 +10,7 @@ class Link:
         self.assigned = False
         self.entangled = False
         self.p = math.exp(-self.alpha * l)
-        # print(self.n1.id, self.n2.id, self.p)
+        self.lifetime = 0
 
     def theOtherEndOf(self, n: Node): 
         if (self.n1 == n): 
