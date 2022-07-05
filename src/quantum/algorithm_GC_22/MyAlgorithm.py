@@ -545,7 +545,7 @@ class MyAlgorithm(AlgorithmBase):
                         nextLinks.append(link)
                         w -= 1
 
-                if prevLinks == None or nextLinks == None:
+                if len(prevLinks) == 0 or len(nextLinks) == 0:
                     break
 
                 for (l1, l2) in zip(prevLinks, nextLinks):
