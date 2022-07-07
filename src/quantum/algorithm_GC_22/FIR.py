@@ -51,7 +51,7 @@ class FIR(AlgorithmBase):
 
         while True: 
             candidates = self.calCandidates(self.requests) # candidates -> [PickedPath, ...]   
-            sorted(candidates, key=lambda x: x.weight)
+            candidates = sorted(candidates, key=lambda x: x.weight)
             if len(candidates) == 0:
                 break
             pick = candidates[-1]   # pick -> PickedPath 
@@ -139,7 +139,7 @@ class FIR(AlgorithmBase):
 
                 E[src.id] = [sys.float_info.max, [0.0 for _ in range(0,w+1)]]
                 q.append((E[src.id][0], src, self.topo.sentinel))
-                sorted(q, key=lambda q: q[0])
+                q = sorted(q, key=lambda q: q[0])
 
                 # Dijkstra by EXT
                 while len(q) != 0:
@@ -166,7 +166,7 @@ class FIR(AlgorithmBase):
                         if oldE[0] < newE[0]:
                             E[neighbor.id] = newE
                             q.append((E[neighbor.id][0], neighbor, u))
-                            sorted(q, key=lambda q: q[0])
+                            q = sorted(q, key=lambda q: q[0])
                 # Dijkstra end
 
                 # 假如此SD-pair在width w有找到path則換找下一個SD-pair 目前不確定是否為此機制
@@ -193,7 +193,7 @@ class FIR(AlgorithmBase):
             for link in n1.links:
                 if link.contains(n2) and not link.assigned:
                     links.append(link)
-            sorted(links, key=lambda q: q.id)
+            links = sorted(links, key=lambda q: q.id)
 
             for i in range(0, width):
                 self.totalUsedQubits += 2
@@ -277,6 +277,6 @@ if __name__ == '__main__':
     for i in range(0, 200):
         if i < 10:
             a = sample(topo.nodes, 2)
-            s2.work([(a[0],a[1])], i)
+            s.work([(a[0],a[1])], i)
         else:
-            s2.work([], i)
+            s.work([], i)

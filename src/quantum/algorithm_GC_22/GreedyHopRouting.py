@@ -87,7 +87,7 @@ class GreedyHopRouting(AlgorithmBase):
 
                 found = True
                 self.pathsSortedDynamically.append((0.0, width, p, time))
-                sorted(self.pathsSortedDynamically, key=lambda x: x[1])
+                self.pathsSortedDynamically = sorted(self.pathsSortedDynamically, key=lambda x: x[1])
 
                 # Assign Qubits for links in path 
                 for _ in range(0, width):
@@ -173,11 +173,11 @@ class GreedyHopRouting(AlgorithmBase):
         
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.0001, 6)
+    topo = Topo.generate(100, 0.9, 5, 0.002, 6)
     # f = open('logfile.txt', 'w')
     
     a1 = GreedyHopRouting(topo)
-    # a2 = MyAlgorithm(topo)
+    a2 = MyAlgorithm(topo)
     a3 = FIR(topo)
     a4 = OnlineAlgorithm(topo)
     # samplesPerTime = 2
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 2
+    samplesPerTime = 6
     ttime = 100
     rtime = 10
     requests = {i : [] for i in range(ttime)}
@@ -239,10 +239,10 @@ if __name__ == '__main__':
                 requests[i].append((a[n], a[n+1]))
 
     for i in range(ttime):
+        t2 = a2.work(requests[i], i)
+
+    for i in range(ttime):
         t4 = a4.work(requests[i], i)
     
     for i in range(ttime):
         t1 = a1.work(requests[i], i)
-
-    for i in range(ttime):
-        t3 = a3.work(requests[i], i)

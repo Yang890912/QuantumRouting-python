@@ -52,7 +52,7 @@ class OnlineAlgorithm(AlgorithmBase):
 
         while True: 
             candidates = self.calCandidates(self.requests) # candidates -> [PickedPath, ...]   
-            sorted(candidates, key=lambda x: x.weight)
+            candidates = sorted(candidates, key=lambda x: x.weight)
             if len(candidates) == 0:
                 break
             pick = candidates[-1]   # pick -> PickedPath 
@@ -145,7 +145,7 @@ class OnlineAlgorithm(AlgorithmBase):
 
                 E[src.id] = [sys.float_info.max, [0.0 for _ in range(0,w+1)]]
                 q.append((E[src.id][0], src, self.topo.sentinel))
-                sorted(q, key=lambda q: q[0])
+                q = sorted(q, key=lambda q: q[0])
 
                 # Dijkstra by EXT
                 while len(q) != 0:
@@ -172,7 +172,7 @@ class OnlineAlgorithm(AlgorithmBase):
                         if oldE[0] < newE[0]:
                             E[neighbor.id] = newE
                             q.append((E[neighbor.id][0], neighbor, u))
-                            sorted(q, key=lambda q: q[0])
+                            q = sorted(q, key=lambda q: q[0])
                 # Dijkstra end
 
                 # 假如此SD-pair在width w有找到path則換找下一個SD-pair 目前不確定是否為此機制
@@ -199,7 +199,7 @@ class OnlineAlgorithm(AlgorithmBase):
             for link in n1.links:
                 if link.contains(n2) and not link.assigned:
                     links.append(link)
-            sorted(links, key=lambda q: q.id)
+            links = sorted(links, key=lambda q: q.id)
 
             for i in range(0, width):
                 self.totalUsedQubits += 2
@@ -215,7 +215,7 @@ class OnlineAlgorithm(AlgorithmBase):
                     (src, dst) = (p[i], p[i+l])
 
                     candidates = self.calCandidates([(src, dst, self.timeSlot)]) # candidates -> [PickedPath, ...]   
-                    sorted(candidates, key=lambda x: x.weight)
+                    candidates = sorted(candidates, key=lambda x: x.weight)
                     if len(candidates) == 0:
                         continue
                     pick = candidates[-1]   # pick -> PickedPath
@@ -231,7 +231,7 @@ class OnlineAlgorithm(AlgorithmBase):
             oldNumOfPairs = len(self.topo.getEstablishedEntanglements(majorPath[0], majorPath[-1]))
 
             recoveryPaths = self.recoveryPaths[pathWithWidth]   # recoveryPaths -> [pickedPath, ...]
-            sorted(recoveryPaths, key=lambda x: len(x.path)*10000 + majorPath.index(x.path[0])) # sort recoveryPaths by it recoverypath length and the index of the first node in recoveryPath  
+            recoveryPaths = sorted(recoveryPaths, key=lambda x: len(x.path)*10000 + majorPath.index(x.path[0])) # sort recoveryPaths by it recoverypath length and the index of the first node in recoveryPath  
 
             # Construct pathToRecoveryPaths table
             for recoveryPath in recoveryPaths:
@@ -314,7 +314,7 @@ class OnlineAlgorithm(AlgorithmBase):
                             rps.remove(rp)
 
                     # sort rps by the start id in majorPath
-                    sorted(rps, key=lambda x: majorPath.index(x[0]) * 10000 + majorPath.index(x[-1]) )
+                    rps = sorted(rps, key=lambda x: majorPath.index(x[0]) * 10000 + majorPath.index(x[-1]) )
 
                     for rp in rps:
                         if majorPath.index(rp[0]) < next:

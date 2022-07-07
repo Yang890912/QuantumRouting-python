@@ -213,7 +213,7 @@ class REPS(AlgorithmBase):
                         next = Pi[SDpair][k][nodeIndex + 1]
                         self.fi[SDpair][(node, next)] += width
 
-            sorted(paths, key = self.widthForSort)
+            paths = sorted(paths, key = self.widthForSort)
 
             for path in paths:
                 pathLen = len(path) - 1

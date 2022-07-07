@@ -421,7 +421,7 @@ class MyAlgorithm(AlgorithmBase):
 
         # 根據path長度排序 
         # state2 > state1, timeslot, path長度
-        sorted(self.requestState.items(), key=lambda x: (-x[1].state, x[0][2], x[1].pathlen))
+        self.requestState = sorted(self.requestState.items(), key=lambda x: (-x[1].state, x[0][2], x[1].pathlen))
         self.requestState = dict(self.requestState)
 
         if len(self.requestState) > 0:
@@ -504,7 +504,8 @@ class MyAlgorithm(AlgorithmBase):
     # p4 & p5
     def p4(self):
         
-        sorted(self.requestState, key=lambda q: q[2])
+        self.requestState = sorted(self.requestState.items(), key=lambda x: x[0][2])
+        self.requestState = dict(self.requestState)
         finishedRequest = []
         # p4
         for req in self.requestState:
@@ -625,7 +626,7 @@ class MyAlgorithm(AlgorithmBase):
     
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.0001, 6)
+    topo = Topo.generate(100, 0.9, 5, 0.002, 6)
     s = MyAlgorithm(topo)
     
     # for i in range(0, 200):
