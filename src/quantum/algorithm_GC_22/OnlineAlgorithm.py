@@ -204,7 +204,7 @@ class OnlineAlgorithm(AlgorithmBase):
             for i in range(0, width):
                 self.totalUsedQubits += 2
                 links[i].assignQubits()
-                links[i].tryEntanglement() # just display
+                # links[i].tryEntanglement() # just display
 
     def P2Extra(self):
         for majorPath in self.majorPaths:

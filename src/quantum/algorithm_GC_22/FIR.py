@@ -198,7 +198,7 @@ class FIR(AlgorithmBase):
             for i in range(0, width):
                 self.totalUsedQubits += 2
                 links[i].assignQubits()
-                links[i].tryEntanglement() # just display
+                # links[i].tryEntanglement() # just display
 
     def p4(self):
         for pathWithWidth in self.majorPaths:
