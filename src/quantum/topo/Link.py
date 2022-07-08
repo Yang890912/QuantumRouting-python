@@ -69,7 +69,7 @@ class Link:
                         self.n2.internalLinks.remove(internalLink)
          
     def tryEntanglement(self):
-        b = self.assigned and self.p >= random.random()
+        b = (self.assigned and self.p >= random.random()) or self.entangled
         self.entangled = b
         return b
   
