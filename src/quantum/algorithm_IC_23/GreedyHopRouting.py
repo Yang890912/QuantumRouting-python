@@ -18,6 +18,7 @@ class GreedyHopRouting(AlgorithmBase):
         self.requests = []
         self.bindLinks = {}
         self.state = {}
+        self.linkLifetime = 30
 
         self.totalTime = 0
         self.totalUsedQubits = 0
@@ -264,7 +265,15 @@ class GreedyHopRouting(AlgorithmBase):
         for path in reallocated:
             self.pathsSortedDynamically.remove(path)
 
-        
+        # link dead
+        for req in self.bindLinks:
+            for link in self.bindLinks[req]:
+                if link.entangled == True:
+                    link.lifetime += 1
+                    if link.lifetime > self.linkLifetime:
+                        link.entangled == False
+                        link.lifetime = 0
+
         #                       #                
         #   RECORD EXPERIMENT   #
         #                       #
@@ -342,7 +351,7 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 10
+    samplesPerTime = 2
     ttime = 100
     rtime = 10
     requests = {i : [] for i in range(ttime)}

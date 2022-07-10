@@ -30,6 +30,7 @@ class OnlineAlgorithm(AlgorithmBase):
         self.bindLinks = {}
         self.extraLinks = {}
         self.state = {}
+        self.linkLifetime = 30
 
         self.totalTime = 0
         self.totalUsedQubits = 0
@@ -525,6 +526,16 @@ class OnlineAlgorithm(AlgorithmBase):
 
         for pathWithWidth in reallocated:
             self.majorPaths.remove(pathWithWidth)
+        
+        # link dead
+        for req in self.bindLinks:
+            for link in self.bindLinks[req]:
+                if link.entangled == True:
+                    link.lifetime += 1
+                    if link.lifetime > self.linkLifetime:
+                        link.entangled == False
+                        link.lifetime = 0
+                        
 
         #                       #                
         #   RECORD EXPERIMENT   #
@@ -549,7 +560,7 @@ class OnlineAlgorithm(AlgorithmBase):
 
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.002, 6)
+    topo = Topo.generate(100, 0.9, 5, 0.001, 6)
     s = OnlineAlgorithm(topo)
 
     for i in range(0, 200):

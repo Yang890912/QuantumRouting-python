@@ -42,6 +42,7 @@ class Link:
         self.s2 = False
         self.assigned = False
         self.entangled = False
+        self.lifetime = 0
 
         for internalLink in self.n1.internalLinks:
             if self in internalLink:

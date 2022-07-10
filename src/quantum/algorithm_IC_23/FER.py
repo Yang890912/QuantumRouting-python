@@ -26,6 +26,7 @@ class FER(AlgorithmBase):
         self.requests = []
         self.bindLinks = {}
         self.state = {}
+        self.linkLifetime = 30
 
         self.totalTime = 0
         self.totalUsedQubits = 0
@@ -322,6 +323,15 @@ class FER(AlgorithmBase):
 
         for pathWithWidth in reallocated:
             self.majorPaths.remove(pathWithWidth)
+        
+        # link dead
+        for req in self.bindLinks:
+            for link in self.bindLinks[req]:
+                if link.entangled == True:
+                    link.lifetime += 1
+                    if link.lifetime > self.linkLifetime:
+                        link.entangled == False
+                        link.lifetime = 0
 
         #                       #                
         #   RECORD EXPERIMENT   #
