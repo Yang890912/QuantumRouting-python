@@ -197,9 +197,9 @@ class Topo:
         fStateMetric.clear()
         if edges != None:
             fStateMetric = {edge : self.distance(edge[0].loc, edge[1].loc) for edge in edges} 
-        elif greedyType == 'Hop' and edges == None:
+        elif greedyType == 'Hop' and edges == None: # hop
             fStateMetric = {edge : 1 for edge in self.edges}
-        else: 
+        else:   # distance
             fStateMetric = {edge : self.distance(edge[0].loc, edge[1].loc) for edge in self.edges}
 
         # Construct neightor & weight table for nodes
