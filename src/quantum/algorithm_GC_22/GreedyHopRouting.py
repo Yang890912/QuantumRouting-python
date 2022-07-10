@@ -3,7 +3,7 @@ sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
 from MyAlgorithm import MyAlgorithm
 from OnlineAlgorithm import OnlineAlgorithm
-from FIR import FIR
+from FER import FER
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
@@ -173,12 +173,12 @@ class GreedyHopRouting(AlgorithmBase):
         
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.002, 6)
+    topo = Topo.generate(100, 0.9, 5, 0.001, 6)
     # f = open('logfile.txt', 'w')
     
     a1 = GreedyHopRouting(topo)
     a2 = MyAlgorithm(topo)
-    a3 = FIR(topo)
+    a3 = FER(topo)
     a4 = OnlineAlgorithm(topo)
     # samplesPerTime = 2
 
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 6
+    samplesPerTime = 10
     ttime = 100
     rtime = 10
     requests = {i : [] for i in range(ttime)}

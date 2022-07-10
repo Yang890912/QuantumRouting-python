@@ -16,17 +16,17 @@ class RecoveryPath:
     taken: int 
     available: int
 
-class FIR(AlgorithmBase):
+class FER(AlgorithmBase):
 
     def __init__(self, topo, allowRecoveryPaths = True):
         super().__init__(topo)
-        self.name = "FIR"
+        self.pathsSortedDynamically = []
+        self.name = "FER"
         self.majorPaths = []            # [PickedPath, ...]
+        self.recoveryPaths = {}         # {PickedPath: [PickedPath, ...], ...}
+        self.pathToRecoveryPaths = {}   # {PickedPath : [RecoveryPath, ...], ...}
         self.allowRecoveryPaths = allowRecoveryPaths
         self.requests = []
-        self.bindLinks = {}
-        self.state = {}
-
         self.totalTime = 0
         self.totalUsedQubits = 0
         self.totalNumOfReq = 0
@@ -37,14 +37,15 @@ class FIR(AlgorithmBase):
 
     # P2
     def p2(self):
+        self.majorPaths.clear()
+        self.recoveryPaths.clear()
+        self.pathToRecoveryPaths.clear()
 
         for req in self.srcDstPairs:
             (src, dst) = req
             self.totalNumOfReq += 1
             self.requests.append((src, dst, self.timeSlot))
-            self.bindLinks[(src, dst, self.timeSlot)] = []
-            self.state[(src, dst, self.timeSlot)] = 0
-
+        
         if len(self.requests) > 0:
             self.result.numOfTimeslot += 1
 
@@ -55,14 +56,14 @@ class FIR(AlgorithmBase):
                 break
             pick = candidates[-1]   # pick -> PickedPath 
 
-            print('---')
+            print('-----')
             for c in candidates:
                 print('[', self.name, '] Path:', [x.id for x in c.path])
                 print('[', self.name, '] EXT:', c.weight)
-                print('[', self.name, '] Width:', c.width)
+                print('[', self.name, '] width:', c.width)
             
-            print('[', self.name, '] Pick: ', [x.id for x in pick.path])
-            print('---')
+            print('[', self.name, '] pick: ', [x.id for x in pick.path])
+            print('-----')
 
             if pick.weight > 0.0: 
                 self.pickAndAssignPath(pick)
@@ -79,20 +80,16 @@ class FIR(AlgorithmBase):
                     
             if not pick:
                 self.result.idleTime += 1
-
-        print('[', self.name, '] P2 End')
-
-    # Calculate the candidate path for each requests 
+         
+    # 對每個SD-pair找出候選路徑，目前不確定只會找一條還是可以多條
     def calCandidates(self, requests: list): # pairs -> [(Node, Node), ...]
         candidates = [] 
         for req in requests:
+
             candidate = []
             (src, dst, time) = req
             maxM = min(src.remainingQubits, dst.remainingQubits)
             if maxM == 0:   # not enough qubit
-                continue
-            
-            if self.state[req] == 1:   # If the req has binding links, continue
                 continue
 
             for w in range(maxM, 0, -1): # w = maxM, maxM-1, maxM-2, ..., 1
@@ -146,7 +143,7 @@ class FIR(AlgorithmBase):
 
                 # Dijkstra by EXT
                 while len(q) != 0:
-                    contain = q.pop(-1) # Pop the node with the highest E
+                    contain = q.pop(-1) # pop the node with the highest E
                     u, prev = contain[1], contain[2]
                     if u in prevFromSrc.keys():
                         continue
@@ -172,7 +169,7 @@ class FIR(AlgorithmBase):
                             q = sorted(q, key=lambda q: q[0])
                 # Dijkstra end
 
-                # IF this SD-pair find a path, go on solving the next SD-pair 
+                # 假如此SD-pair在width w有找到path則換找下一個SD-pair 目前不確定是否為此機制
                 if len(candidate) > 0:
                     candidates += candidate
                     break
@@ -181,8 +178,12 @@ class FIR(AlgorithmBase):
         return candidates
 
     def pickAndAssignPath(self, pick: PickedPath, majorPath: PickedPath = None):
-
-        self.majorPaths.append(pick)        
+        if majorPath != None:
+            self.recoveryPaths[majorPath].append(pick)
+        else:
+            self.majorPaths.append(pick)
+            self.recoveryPaths[pick] = list()
+            
         width = pick.width
 
         for i in range(0, len(pick.path) - 1):
@@ -197,54 +198,17 @@ class FIR(AlgorithmBase):
             for i in range(0, width):
                 self.totalUsedQubits += 2
                 links[i].assignQubits()
-                self.bindLinks[(pick.path[0], pick.path[-1], pick.time)].append(links[i])
-
-    def checkReqState(self):
-            finished = []
-            unfinished = []
-            reallocated = []
-
-            for pathWithWidth in self.majorPaths:
-                majorPath = pathWithWidth.path
-                time = pathWithWidth.time
-                req = (majorPath[0], majorPath[-1], time)
-
-                if req not in self.requests:    
-                    if req in self.bindLinks:   # If the SD-pair has finished but links are not deleted
-                        print('[', self.name, '] Finish')
-                        print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                        for link in self.bindLinks[req]:
-                            link.clearEntanglement()
-                        self.bindLinks.pop(req)
-                        finished.append(pathWithWidth)
-                    else: # If the SD-pair has finished and release links
-                        print('[', self.name, '] Finish and No Remain Links')
-                        finished.append(pathWithWidth)
-                elif req in self.requests and len(self.bindLinks[req]) == 0 and self.state[req] == 1:   # If the request using all links but failed, reallocate
-                    print('[', self.name, '] Reallocated')
-                    reallocated.append(pathWithWidth)
-                    self.state[req] = 0
-                else:   # If the SD-pair unfinished
-                    print('[', self.name, '] Unfinished')
-                    print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                    unfinished.append(pathWithWidth)
-                    self.state[req] = 1
-
-            print('---')
-            return finished, unfinished, reallocated
+                # links[i].tryEntanglement() # just display
 
     def p4(self):
         for pathWithWidth in self.majorPaths:
             width = pathWithWidth.width
             majorPath = pathWithWidth.path
             time = pathWithWidth.time
-            req = (majorPath[0], majorPath[-1], time)
-            links = self.bindLinks[req]
             oldNumOfPairs = len(self.topo.getEstablishedEntanglements(majorPath[0], majorPath[-1]))
-            theSwappedLinks = set()
-            print(majorPath[0].id, majorPath[-1].id, time)
+
             # for w-width major path, treat it as w different paths
-            for _ in range(0, width):
+            for w in range(1, width + 1):
                 
                 acc = majorPath
                 nodes = []
@@ -260,12 +224,12 @@ class FIR(AlgorithmBase):
                     nextLink = []  
                  
                     for link in curr.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
+                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1):
                             prevLink.append(link)
                             break
 
                     for link in curr.links:
-                        if link.entangled and (link.n1 == next and not link.s2 or link.n2 == next and not link.s1) and link in links:
+                        if link.entangled and (link.n1 == next and not link.s2 or link.n2 == next and not link.s1):
                             nextLink.append(link)
                             break
 
@@ -280,74 +244,35 @@ class FIR(AlgorithmBase):
                 if len(nodes) == len(acc) - 2 and len(acc) > 2:
                     for (node, l1, l2) in zip(nodes, prevLinks, nextLinks):                    
                         node.attemptSwapping(l1, l2)
-                        theSwappedLinks.add(l1)
-                        theSwappedLinks.add(l2)
-
-                # path length = 2
-                if len(acc) == 2:
-                    prev = acc[0]
-                    curr = acc[1]
-                    for link in prev.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            theSwappedLinks.add(link)
-                            break
-            # for end
 
             succ = len(self.topo.getEstablishedEntanglements(acc[0], acc[-1])) - oldNumOfPairs
             
-            # Remove finished requests for 1 length 
-            if len(acc) == 2:
-                if req in self.requests:
+            if succ > 0 or len(acc) == 2:
+                find = (acc[0], acc[-1], time)
+                if find in self.requests:
                     self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)
-            
-            # Remove finished requests
-            while succ > 0:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)   
-                succ -= 1
-            
-            # Delete used links and clear entanglement for swapped 
-            for link in theSwappedLinks:
-                link.clearEntanglement()
-                if link in links:
-                    links.remove(link)
-        # for end
+                    self.requests.remove(find)
+        # for pathWithWidth end
         
-        finished, unfinished, reallocated = self.checkReqState()
-
-        for pathWithWidth in finished:
-            self.majorPaths.remove(pathWithWidth)
-
-        for pathWithWidth in reallocated:
-            self.majorPaths.remove(pathWithWidth)
-
-        #                       #                
-        #   RECORD EXPERIMENT   #
-        #                       #
-
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
         for req in self.requests:
             # self.result.unfinishedRequest += 1
             remainTime += self.timeSlot - req[2]
 
-        # self.topo.clearAllEntanglements()
+        self.topo.clearAllEntanglements()
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)   
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
-        print('[', self.name, '] Waiting Time:', self.result.waitingTime)
-        print('[', self.name, '] Idle Time:', self.result.idleTime)
-        print('[', self.name, '] P4 End')
+        print('[', self.name, '] waiting time:', self.result.waitingTime)
+        print('[', self.name, '] idle time:', self.result.idleTime)
 
         return self.result
 
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.001, 6)
-    s = FIR(topo)
+    topo = Topo.generate(100, 0.9, 5, 0.0001, 6)
+    s = FER(topo)
 
     for i in range(0, 200):
         if i < 10:
