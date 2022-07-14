@@ -49,8 +49,8 @@ class Link:
                 self.n1.internalLinks.remove(internalLink)
 
         for internalLink in self.n2.internalLinks:
-                    if self in internalLink:
-                        self.n2.internalLinks.remove(internalLink)
+            if self in internalLink:
+                self.n2.internalLinks.remove(internalLink)
 
         if preState:
             self.n1.remainingQubits += 1
@@ -66,9 +66,9 @@ class Link:
                 self.n1.internalLinks.remove(internalLink)
 
         for internalLink in self.n2.internalLinks:
-                    if self in internalLink:
-                        self.n2.internalLinks.remove(internalLink)
-         
+            if self in internalLink:
+                self.n2.internalLinks.remove(internalLink)
+    
     def tryEntanglement(self):
         b = (self.assigned and self.p >= random.random()) or self.entangled
         self.entangled = b
