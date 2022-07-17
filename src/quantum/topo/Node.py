@@ -1,10 +1,7 @@
-
-
 import random
 
 class Node:
 
-    
     def __init__(self, id: int, loc: tuple, nQubits: int, topo) -> bool:
         self.id = id
         self.loc = loc
