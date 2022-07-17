@@ -233,25 +233,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
 
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
-       
-        # Calculate the number of finished request
-        finished = []
-        for req in self.requests:
-            if req not in self.reqToIntermediate:
-                continue
-            intermediate = self.reqToIntermediate[req]
-            if intermediate == req[1]:  # intermediate = terminal
-                for path in self.bindLinks[req]:
-                    self.pathsSortedDynamically.remove(path)
-                    (_, width, p, time, req) = path
-                    for w in range(0, width): 
-                        for link in self.bindLinks[req][path][w]:
-                            link.clearEntanglement()
-                
-                self.reqToIntermediate.pop(req)
-                self.bindLinks.pop(req)
-                finished.append(req)
-        
+            
         # Delete the finished request
         for req in finished:
             if req in self.requests:
@@ -318,7 +300,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
 
-        # Calculate the number of finished request     
+        # Delete the finished request
         for req in finished:
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
@@ -388,7 +370,7 @@ if __name__ == '__main__':
     
     a1 = GreedyHopRouting_OPP(topo, 1)
     a2 = GreedyHopRouting_OPP(topo, 2)
-    # a4 = OnlineAlgorithm(topo)
+    a3 = GreedyHopRouting(topo)
     # samplesPerTime = 2
 
     # while samplesPerTime < 11:
@@ -436,7 +418,7 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 4
+    samplesPerTime = 10
     ttime = 100
     rtime = 5
     requests = {i : [] for i in range(ttime)}
@@ -461,12 +443,24 @@ if __name__ == '__main__':
             print(node.id, memory[node.id]-node.remainingQubits)
 
     print('---')
-    for link in topo.links:
-        link.clearEntanglement()
+    # for link in topo.links:
+    #     link.clearEntanglement()
 
     # a2
     for i in range(ttime):
         a2.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
+
+    print('---')
+    # for link in topo.links:
+    #     link.clearEntanglement()
+    
+    # a3
+    for i in range(ttime):
+        a3.work(requests[i], i)
 
     for node in topo.nodes:
         if memory[node.id] != node.remainingQubits:
