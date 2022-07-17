@@ -43,7 +43,7 @@ class FER(AlgorithmBase):
             (src, dst) = req
             self.totalNumOfReq += 1
             self.requests.append((src, dst, self.timeSlot))
-            self.bindLinks[(src, dst, self.timeSlot)] = []
+            self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
 
         if len(self.requests) > 0:
@@ -56,30 +56,19 @@ class FER(AlgorithmBase):
                 break
             pick = candidates[-1]   # pick -> PickedPath 
 
-            print('---')
-            for c in candidates:
-                print('[', self.name, '] Path:', [x.id for x in c.path])
-                print('[', self.name, '] EXT:', c.weight)
-                print('[', self.name, '] Width:', c.width)
+            # print('---')
+            # for c in candidates:
+            #     print('[', self.name, '] Path:', [x.id for x in c.path])
+            #     print('[', self.name, '] EXT:', c.weight)
+            #     print('[', self.name, '] Width:', c.width)
             
-            print('[', self.name, '] Pick:', [x.id for x in pick.path])
-            print('---')
+            # print('[', self.name, '] Pick:', [x.id for x in pick.path])
+            # print('---')
 
             if pick.weight > 0.0: 
                 self.pickAndAssignPath(pick)
             else:
                 break
-    
-        for req in self.requests:
-            pick = False
-            for pathWithWidth in self.majorPaths:
-                p = pathWithWidth.path
-                if (p[0], p[-1], pathWithWidth.time) == req:
-                    pick = True
-                    break
-                    
-            if not pick:
-                self.result.idleTime += 1
 
         print('[', self.name, '] P2 End')
 
@@ -93,7 +82,7 @@ class FER(AlgorithmBase):
             if maxM == 0:   # not enough qubit
                 continue
             
-            if self.state[req] == 1:   # If the req has binding links, continue
+            if self.state[req] != 0:   # If the req has binding links, continue
                 continue
 
             for w in range(maxM, 0, -1): # w = maxM, maxM-1, maxM-2, ..., 1
@@ -183,165 +172,146 @@ class FER(AlgorithmBase):
 
     def pickAndAssignPath(self, pick: PickedPath, majorPath: PickedPath = None):
 
-        self.majorPaths.append(pick)        
+        self.majorPaths.append(pick)
+        path = tuple(pick.path)        
         width = pick.width
+        time = pick.time
+        req = (path[0], path[-1], time)
+        self.bindLinks[req][path] = []
 
-        for i in range(0, len(pick.path) - 1):
-            links = []
-            n1, n2 = pick.path[i], pick.path[i+1]
+        # Assign Qubits for links in path 
+        for w in range(0, width):
+            self.bindLinks[req][path].append([])
+            for s in range(0, len(path) - 1):
+                n1 = path[s]
+                n2 = path[s+1]
+                for link in n1.links:
+                    if link.contains(n2) and (not link.assigned):
+                        self.totalUsedQubits += 2
+                        link.assignQubits()
+                        self.bindLinks[req][path][w].append(link)
+                        break    
+ 
+    def swapped(self, path, links):
+        # Calculate the continuous all succeed links 
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
 
-            for link in n1.links:
-                if link.contains(n2) and not link.assigned:
-                    links.append(link)
-            links = sorted(links, key=lambda q: q.id)
+            if not prevLink.entangled:
+                return path[0]
 
-            for i in range(0, width):
-                self.totalUsedQubits += 2
-                links[i].assignQubits()
-                self.bindLinks[(pick.path[0], pick.path[-1], pick.time)].append(links[i])
+        if len(path) == 2:  # If path just 2 length 
+            if not links[0].entangled:
+                return path[0]
+            else:
+                return path[1]
+              
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
 
-    def checkReqState(self):
-            finished = []
-            unfinished = []
-            reallocated = []
-
-            for pathWithWidth in self.majorPaths:
-                majorPath = pathWithWidth.path
-                time = pathWithWidth.time
-                req = (majorPath[0], majorPath[-1], time)
-
-                if req not in self.requests:    
-                    if req in self.bindLinks:   # If the SD-pair has finished but links are not deleted
-                        print('[', self.name, '] Finish')
-                        print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                        for link in self.bindLinks[req]:
-                            link.clearEntanglement()
-                        self.bindLinks.pop(req)
-                        finished.append(pathWithWidth)
-                    else: # If the SD-pair has finished and release links
-                        print('[', self.name, '] Finish and No Remain Links')
-                        finished.append(pathWithWidth)
-                elif req in self.requests and len(self.bindLinks[req]) == 0 and self.state[req] == 1:   # If the request using all links but failed, reallocate
-                    print('[', self.name, '] Reallocated')
-                    reallocated.append(pathWithWidth)
-                    self.state[req] = 0
-                else:   # If the SD-pair unfinished
-                    print('[', self.name, '] Unfinished')
-                    print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                    unfinished.append(pathWithWidth)
-                    self.state[req] = 1
-
-            print('---')
-            return finished, unfinished, reallocated
+            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
+                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
+                    for link in links:
+                        if link.swapped():
+                            link.clearPhase4Swap() 
+                    return path[0]  # Forward 0 hop
+                else:       
+                    if n == len(path)-2:    # Swap succeed and the next hop is terminal than forward to it
+                        return path[-1]
+                    else:   
+                        return path[0]  # Forward 0 hop
+            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and prevLink.swappedAt(path[n]):
+                continue
 
     def p4(self):
+        finished = []
+
+        # Swapped
         for pathWithWidth in self.majorPaths:
             width = pathWithWidth.width
-            majorPath = pathWithWidth.path
+            path = tuple(pathWithWidth.path)
             time = pathWithWidth.time
-            req = (majorPath[0], majorPath[-1], time)
-            links = self.bindLinks[req]
-            oldNumOfPairs = len(self.topo.getEstablishedEntanglements(majorPath[0], majorPath[-1]))
-            theSwappedLinks = set()
-            # print(majorPath[0].id, majorPath[-1].id, time)
-            # for w-width major path, treat it as w different paths
-            for _ in range(0, width):
-                
-                acc = majorPath
-                nodes = []
-                prevLinks = []
-                nextLinks = [] 
+            req = (path[0], path[-1], time)
 
-                # swap (select links)
-                for i in range(1, len(acc) - 1):
-                    prev = acc[i-1]
-                    curr = acc[i]
-                    next = acc[i+1]
-                    prevLink = []
-                    nextLink = []  
-                 
-                    for link in curr.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            prevLink.append(link)
-                            break
+            self.state[req] = 1 
 
-                    for link in curr.links:
-                        if link.entangled and (link.n1 == next and not link.s2 or link.n2 == next and not link.s1) and link in links:
-                            nextLink.append(link)
-                            break
+            if req in finished:
+                continue
 
-                    if len(prevLink) == 0 or len(nextLink) == 0:
-                        break
-                    
-                    nodes.append(curr)
-                    prevLinks.append(prevLink[0])
-                    nextLinks.append(nextLink[0])
+            for w in range(0, width): 
+                links = self.bindLinks[req][path][w]
+                arrive = self.swapped(path, links)
 
-                # swap 
-                if len(nodes) == len(acc) - 2 and len(acc) > 2:
-                    for (node, l1, l2) in zip(nodes, prevLinks, nextLinks):                    
-                        node.attemptSwapping(l1, l2)
-                        theSwappedLinks.add(l1)
-                        theSwappedLinks.add(l2)
+                if req[1] == arrive:
+                    finished.append(req)
+      
+        # Calculate the idle time for all requests
+        for req in self.requests:
+            if self.state[req] == 0: 
+                self.result.idleTime += 1
 
-                # path length = 2
-                if len(acc) == 2:
-                    prev = acc[0]
-                    curr = acc[1]
-                    for link in prev.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            theSwappedLinks.add(link)
-                            break
-            # for end
+        removedPickedPath = []
 
-            succ = len(self.topo.getEstablishedEntanglements(acc[0], acc[-1])) - oldNumOfPairs
-            
-            # Remove finished requests for 1 length 
-            if len(acc) == 2:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)
-            
-            # Remove finished requests
-            while succ > 0:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)   
-                succ -= 1
-            
-            # Delete used links and clear entanglement for swapped 
-            for link in theSwappedLinks:
-                link.clearEntanglement()
-                if link in links:
-                    links.remove(link)
-        # for end
-        
-        finished, unfinished, reallocated = self.checkReqState()
+        # Calculate the finished number of requests
+        for req in finished:
+            if req in self.requests:
+                print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
+                self.totalTime += self.timeSlot - req[2]
+                self.requests.remove(req)
 
-        for pathWithWidth in finished:
+        # Delete used links and clear entanglement for finished SD-pairs 
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+
+            if req in finished: 
+                if path in self.bindLinks[req]:
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    removedPickedPath.append(pathWithWidth)
+
+        for req in finished: 
+            if req in self.bindLinks:          
+                self.bindLinks.pop(req)
+
+        for pathWithWidth in removedPickedPath:
             self.majorPaths.remove(pathWithWidth)
-
-        for pathWithWidth in reallocated:
-            self.majorPaths.remove(pathWithWidth)
-        
-        # link dead
-        for req in self.bindLinks:
-            for link in self.bindLinks[req]:
-                if link.entangled == True:
-                    link.lifetime += 1
-                    if link.lifetime > self.linkLifetime:
-                        link.entangled == False
-                        link.lifetime = 0
+       
+        # Update links' lifetime       
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+  
+            for w in range(0, width): 
+                links = self.bindLinks[req][path][w]
+                for link in links:
+                    if link.entangled == True:
+                        link.lifetime += 1
+                        if link.lifetime > self.linkLifetime:
+                            if link.swapped():
+                                for link2 in links:
+                                    if link2.swapped():
+                                        link2.clearPhase4Swap()
+                            else:
+                                link.entangled == False
+                                link.lifetime = 0
 
         #                       #                
         #   RECORD EXPERIMENT   #
         #                       #
 
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
-        for req in self.requests:
+        for remainReq in self.requests:
+            print('[', self.name, '] Remain Requests:', remainReq[0].id, remainReq[1].id, remainReq[2])
             # self.result.unfinishedRequest += 1
-            remainTime += self.timeSlot - req[2]
+            remainTime += self.timeSlot - remainReq[2]
 
         # self.topo.clearAllEntanglements()
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)   
@@ -357,11 +327,82 @@ class FER(AlgorithmBase):
 if __name__ == '__main__':
 
     topo = Topo.generate(100, 0.9, 5, 0.001, 6)
-    s = FER(topo)
+    # f = open('logfile.txt', 'w')
+    
+    a1 = FER(topo)
+    # a2 = MyAlgorithm(topo)
+    # a3 = FER(topo)
+    # a4 = OnlineAlgorithm(topo)
+    # samplesPerTime = 2
 
-    for i in range(0, 200):
-        if i < 10:
-            a = sample(topo.nodes, 2)
-            s.work([(a[0],a[1])], i)
-        else:
-            s.work([], i)
+    # while samplesPerTime < 11:
+    #     ttime = 200
+    #     rtime = 10
+    #     requests = {i : [] for i in range(ttime)}
+    #     t1 = 0
+    #     t2 = 0
+    #     t3 = 0
+    #     t4 = 0
+    #     f.write(str(samplesPerTime/2)+' ')
+    #     f.flush()
+    #     for i in range(ttime):
+    #         if i < rtime:
+    #             a = sample(topo.nodes, samplesPerTime)
+    #             for n in range(0,samplesPerTime,2):
+    #                 requests[i].append((a[n], a[n+1]))
+            
+
+    #     for i in range(ttime):
+    #         t1 = a1.work(requests[i], i)
+    #     f.write(str(t1/(samplesPerTime/2*rtime))+' ')
+    #     f.flush()
+
+    #     for i in range(ttime):
+    #         t3 = a3.work(requests[i], i)
+    #     f.write(str(t3/(samplesPerTime/2*rtime))+' ')
+    #     f.flush()
+
+    #     for i in range(ttime):
+    #         t4 = a4.work(requests[i], i)
+    #     f.write(str(t4/(samplesPerTime/2*rtime))+' ')
+    #     f.flush()
+
+    #     for i in range(ttime):
+    #         t2 = a2.work(requests[i], i)
+    #     for req in a2.requestState:
+    #         if a2.requestState[req].state == 2:
+    #             a2.requestState[req].intermediate.clearIntermediate()    
+
+    #     f.write(str(t2/(samplesPerTime/2*rtime))+'\n')
+    #     f.flush()
+    #     samplesPerTime += 2 
+
+    # # 5XX
+    # f.close()
+    
+    samplesPerTime = 6
+    ttime = 100
+    rtime = 5
+    requests = {i : [] for i in range(ttime)}
+    memory = {}
+
+    # Record nodes' remainingqubits
+    for node in topo.nodes:
+        memory[node.id] = node.remainingQubits
+
+    # Generate requests
+    for i in range(ttime):
+        if i < rtime:
+            a = sample(topo.nodes, samplesPerTime)
+            for n in range(0,samplesPerTime,2):
+                requests[i].append((a[n], a[n+1]))
+    
+    for i in range(ttime):
+        t1 = a1.work(requests[i], i)
+
+    # for i in range(ttime):
+    #     t3 = a3.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
