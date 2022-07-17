@@ -28,37 +28,38 @@ class GreedyHopRouting(AlgorithmBase):
         self.totalTime = 0
         self.requests.clear()
 
-    def checkReqState(self):
-        finished = []
-        unfinished = []
-        reallocated = []
+    def swapped(self, path, links):
+        # Calculate the continuous all succeed links 
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
 
-        for path in self.pathsSortedDynamically:
-            (_, width, p, time) = path
-            req = (p[0], p[-1], time)
+            if not prevLink.entangled:
+                return path[0]
 
-            if req not in self.requests:    
-                if req in self.bindLinks:   # If the SD-pair has finished but links are not deleted
-                    print('[', self.name, '] Finish')
-                    print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                    for link in self.bindLinks[req]:
-                        link.clearEntanglement()
-                    self.bindLinks.pop(req)
-                    finished.append(path)
-                else:  # If the SD-pair has finished and release links
-                    # print('[', self.name, '] Finish and No Remain Links')
-                    finished.append(path)
-            elif req in self.requests and len(self.bindLinks[req]) == 0 and self.state[req] == 1:   # If the request using all links but failed, reallocate
-                print('[', self.name, '] Reallocated')
-                reallocated.append(path)
-                self.state[req] = 0
-            else:   # If the SD-pair unfinished
-                # print('[', self.name, '] Unfinished')
-                unfinished.append(path)
-                self.state[req] = 1
+        if len(path) == 2:  # If path just 2 length 
+            if not links[0].entangled:
+                return path[0]
+            else:
+                return path[1]
+              
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
 
-        print('---')
-        return finished, unfinished, reallocated
+            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
+                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
+                    for link in links:
+                        if link.swapped():
+                            link.clearPhase4Swap() 
+                    return path[0]  # Forward 0 hop
+                else:       
+                    if n == len(path)-2:    # Swap succeed and the next hop is terminal than forward to it
+                        return path[-1]
+                    else:   
+                        return path[0]  # Forward 0 hop
+            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and prevLink.swappedAt(path[n]):
+                continue
 
     def p2(self):
         # self.pathsSortedDynamically.clear()
@@ -68,7 +69,7 @@ class GreedyHopRouting(AlgorithmBase):
             (src, dst) = req
             self.totalNumOfReq += 1
             self.requests.append((src, dst, self.timeSlot))
-            self.bindLinks[(src, dst, self.timeSlot)] = []
+            self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
     
         # Record the number of time solve requests
@@ -87,7 +88,7 @@ class GreedyHopRouting(AlgorithmBase):
                 p.append(src)
 
                 # If the req has binding links, continue
-                if self.state[req] == 1:
+                if self.state[req] != 0:
                     continue
 
                 # Find a shortest path by greedy min hop  
@@ -132,11 +133,14 @@ class GreedyHopRouting(AlgorithmBase):
                     continue
 
                 found = True
-                self.pathsSortedDynamically.append((0.0, width, p, time))
-                self.pathsSortedDynamically = sorted(self.pathsSortedDynamically, key=lambda x: x[1])
+                path = (0.0, width, tuple(p), time, req)
+                self.pathsSortedDynamically.append(path)   # (weight, width, path, time, req)
+                self.bindLinks[req][path] = []
+                self.state[req] = 1 
 
                 # Assign Qubits for links in path 
-                for _ in range(0, width):
+                for w in range(0, width):
+                    self.bindLinks[req][path].append([])
                     for s in range(0, len(p) - 1):
                         n1 = p[s]
                         n2 = p[s+1]
@@ -144,135 +148,72 @@ class GreedyHopRouting(AlgorithmBase):
                             if link.contains(n2) and (not link.assigned):
                                 self.totalUsedQubits += 2
                                 link.assignQubits()
-                                self.bindLinks[req].append(link)
+                                self.bindLinks[req][path][w].append(link)
                                 break    
             # for end
             if not found:
                 break
         # while end
 
-        # Calculate the idle time 
+        self.pathsSortedDynamically = sorted(self.pathsSortedDynamically, key=lambda x: x[1])
+
+        # Calculate the idle time for all requests
         for req in self.requests:
-            pick = False
-            for path in self.pathsSortedDynamically:
-                (_, width, p, time) = path
-                if (p[0], p[-1], time) == req:
-                    pick = True
-                    break               
-            if not pick:
+            if self.state[req] == 0: 
                 self.result.idleTime += 1
 
         print('[', self.name, '] P2 End')
     
     def p4(self):
 
+        finished = []
+        # Swapped 
         for path in self.pathsSortedDynamically:
-            (_, width, p, time) = path
-            oldNumOfPairs = len(self.topo.getEstablishedEntanglements(p[0], p[-1]))
-            req = (p[0], p[-1], time)
-            links = self.bindLinks[req]
-            theSwappedLinks = set()
+            (_, width, p, time, req) = path
 
-            print('---swap start---')
-            print(p[0].id, p[-1].id, time)
-            print('[', self.name, '] Width:', width)
-            print('[', self.name, '] Path:', [x.id for x in p])
-            print('[', self.name, '] Used Links:', len(links))
- 
-            for _ in range(0, width):
+            if req in finished:
+                continue
 
-                nodes = []
-                prevLinks = []
-                nextLinks = [] 
+            for w in range(0, width): 
+                links = self.bindLinks[req][path][w]
+                arrive = self.swapped(p, links)
 
-                # swap (select links)
-                for i in range(1, len(p) - 1):
-                    prev = p[i-1]
-                    curr = p[i]
-                    next = p[i+1]
-                    prevLink = []
-                    nextLink = []
-                    
-                    for link in curr.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            # print('prev link', link.id)
-                            prevLink.append(link)
-                            break
+                if req[1] == arrive:
+                    finished.append(req)
 
-                    for link in curr.links:
-                        if link.entangled and (link.n1 == next and not link.s2 or link.n2 == next and not link.s1) and link in links:
-                            # print('next link', link.id)
-                            nextLink.append(link)
-                            break
+        for req in finished:
+            if req in self.requests:
+                print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
+                self.totalTime += self.timeSlot - req[2]
+                self.requests.remove(req)
 
-                    if len(prevLink) == 0 or len(nextLink) == 0:
-                        break
+            # Delete used links and clear entanglement for finished SD-pairs 
+            if req in self.bindLinks:
+                for path in self.bindLinks[req]:
+                    (_, width, p, time, req) = path
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    self.pathsSortedDynamically.remove(path)
+                self.bindLinks.pop(req)
 
-                    nodes.append(curr)
-                    prevLinks.append(prevLink[0])
-                    nextLinks.append(nextLink[0])
-
-                # swap  
-                if len(nodes) == len(p) - 2 and len(p) > 2:
-                    for (node, l1, l2) in zip(nodes, prevLinks, nextLinks):
-                        # print(l1.id, l2.id)
-                        theSwappedLinks.add(l1)
-                        theSwappedLinks.add(l2)                    
-                        node.attemptSwapping(l1, l2)
-                
-                if len(p) == 2:
-                    prev = p[0]
-                    curr = p[1]
-                    for link in prev.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            theSwappedLinks.add(link)
-                            break
-            # for end
-
-            succ = len(self.topo.getEstablishedEntanglements(p[0], p[-1])) - oldNumOfPairs
-            print('[', self.name, '] Succ:', succ)
-            print('[', self.name, '] Remove Links:', len(theSwappedLinks))
-            print('---swap end---')
-
-
-            # Remove finished requests for 1 length 
-            if len(p) == 2:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)
-            
-            # Remove finished requests
-            while succ > 0:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)   
-                succ -= 1
-
-            # Delete used links and clear entanglement for swapped 
-            for link in theSwappedLinks:
-                link.clearEntanglement()
-                if link in links:
-                    links.remove(link)
-        # for end
-
-        # Delete used links and clear entanglement for finished SD-pairs 
-        # check and change the state of each request
-        finished, unfinished, reallocated = self.checkReqState()
-            
-        for path in finished:
-            self.pathsSortedDynamically.remove(path)
-
-        for path in reallocated:
-            self.pathsSortedDynamically.remove(path)
-
-        # link dead
-        for req in self.bindLinks:
-            for link in self.bindLinks[req]:
-                if link.entangled == True:
-                    link.lifetime += 1
-                    if link.lifetime > self.linkLifetime:
-                        link.entangled == False
-                        link.lifetime = 0
+        # update links' lifetime       
+        for path in self.pathsSortedDynamically:
+            (_, width, p, time, req) = path
+  
+            for w in range(0, width): 
+                links = self.bindLinks[req][path][w]
+                for link in links:
+                    if link.entangled == True:
+                        link.lifetime += 1
+                        if link.lifetime > self.linkLifetime:
+                            if link.swapped():
+                                for link2 in links:
+                                    if link2.swapped():
+                                        link2.clearPhase4Swap()
+                            else:
+                                link.entangled == False
+                                link.lifetime = 0
 
         #                       #                
         #   RECORD EXPERIMENT   #
@@ -280,9 +221,15 @@ class GreedyHopRouting(AlgorithmBase):
 
         # Calculate the remaining time for unfinished SD-pairs
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
         for remainReq in self.requests:
+            print('[', self.name, '] Remain Requests:', remainReq[0].id, remainReq[1].id, remainReq[2])
             remainTime += self.timeSlot - remainReq[2]
+            for path in self.bindLinks[remainReq]:
+                (_, width, p, time, req) = path
+                for w in range(0, width): 
+                    links = self.bindLinks[req][path][w]
+                    print([link.swapped() for link in links])
+
 
         # self.topo.clearAllEntanglements()
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)     
@@ -351,22 +298,29 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 2
+    samplesPerTime = 6
     ttime = 100
-    rtime = 10
+    rtime = 5
     requests = {i : [] for i in range(ttime)}
+    memory = {}
 
+    # Record nodes' remainingqubits
+    for node in topo.nodes:
+        memory[node.id] = node.remainingQubits
+
+    # Generate requests
     for i in range(ttime):
         if i < rtime:
             a = sample(topo.nodes, samplesPerTime)
             for n in range(0,samplesPerTime,2):
                 requests[i].append((a[n], a[n+1]))
-
-    # for i in range(ttime):
-    #     t4 = a4.work(requests[i], i)
     
     for i in range(ttime):
         t1 = a1.work(requests[i], i)
 
     # for i in range(ttime):
     #     t3 = a3.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
