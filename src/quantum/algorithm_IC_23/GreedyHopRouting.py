@@ -136,7 +136,6 @@ class GreedyHopRouting(AlgorithmBase):
                 path = (0.0, width, tuple(p), time, req)
                 self.pathsSortedDynamically.append(path)   # (weight, width, path, time, req)
                 self.bindLinks[req][path] = []
-                self.state[req] = 1 
 
                 # Assign Qubits for links in path 
                 for w in range(0, width):
@@ -156,12 +155,6 @@ class GreedyHopRouting(AlgorithmBase):
         # while end
 
         self.pathsSortedDynamically = sorted(self.pathsSortedDynamically, key=lambda x: x[1])
-
-        # Calculate the idle time for all requests
-        for req in self.requests:
-            if self.state[req] == 0: 
-                self.result.idleTime += 1
-
         print('[', self.name, '] P2 End')
     
     def p4(self):
@@ -170,6 +163,7 @@ class GreedyHopRouting(AlgorithmBase):
         # Swapped 
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
+            self.state[req] = 1 
 
             if req in finished:
                 continue
@@ -181,6 +175,12 @@ class GreedyHopRouting(AlgorithmBase):
                 if req[1] == arrive:
                     finished.append(req)
 
+        # Calculate the idle time for all requests
+        for req in self.requests:
+            if self.state[req] == 0: 
+                self.result.idleTime += 1
+
+        # Calculate the finished number of requests
         for req in finished:
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
@@ -197,7 +197,7 @@ class GreedyHopRouting(AlgorithmBase):
                     self.pathsSortedDynamically.remove(path)
                 self.bindLinks.pop(req)
 
-        # update links' lifetime       
+        # Update links' lifetime       
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
   
@@ -249,8 +249,8 @@ if __name__ == '__main__':
     
     a1 = GreedyHopRouting(topo)
     # a2 = MyAlgorithm(topo)
-    a3 = FER(topo)
-    a4 = OnlineAlgorithm(topo)
+    # a3 = FER(topo)
+    # a4 = OnlineAlgorithm(topo)
     # samplesPerTime = 2
 
     # while samplesPerTime < 11:
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     # # 5XX
     # f.close()
     
-    samplesPerTime = 6
+    samplesPerTime = 10
     ttime = 100
     rtime = 5
     requests = {i : [] for i in range(ttime)}
