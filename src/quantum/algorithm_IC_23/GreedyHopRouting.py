@@ -1,7 +1,6 @@
 import sys
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
-from MyAlgorithm import MyAlgorithm
 from OnlineAlgorithm import OnlineAlgorithm
 from FER import FER
 from topo.Topo import Topo 
@@ -250,7 +249,7 @@ if __name__ == '__main__':
     a1 = GreedyHopRouting(topo)
     # a2 = MyAlgorithm(topo)
     # a3 = FER(topo)
-    # a4 = OnlineAlgorithm(topo)
+    a2 = OnlineAlgorithm(topo)
     # samplesPerTime = 2
 
     # while samplesPerTime < 11:
@@ -320,6 +319,18 @@ if __name__ == '__main__':
 
     # for i in range(ttime):
     #     t3 = a3.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
+
+    print('---')
+    # for link in topo.links:
+    #     link.clearEntanglement()
+
+    # a2
+    for i in range(ttime):
+        a2.work(requests[i], i)
 
     for node in topo.nodes:
         if memory[node.id] != node.remainingQubits:

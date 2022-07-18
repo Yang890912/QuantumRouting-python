@@ -2,7 +2,6 @@ import sys
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
 from GreedyHopRouting import GreedyHopRouting
-from MyAlgorithm import MyAlgorithm
 from OnlineAlgorithm import OnlineAlgorithm
 from FER import FER
 from topo.Topo import Topo 
