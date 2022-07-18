@@ -227,7 +227,7 @@ class FER(AlgorithmBase):
 
     def p4(self):
         finished = []
-
+        
         # Swapped
         for pathWithWidth in self.majorPaths:
             width = pathWithWidth.width
@@ -239,6 +239,13 @@ class FER(AlgorithmBase):
 
             if req in finished:
                 continue
+            
+            for n in range(0, len(path)-1):
+                for w in range(0, width): 
+                    if not self.bindLinks[req][path][w][n].entangled and not self.bindLinks[req][path][w][n].swapped():
+                        for ww in range(w+1, width):
+                            if self.bindLinks[req][path][ww][n].entangled and not self.bindLinks[req][path][ww][n].swapped():
+                                self.bindLinks[req][path][w][n], self.bindLinks[req][path][ww][n] = self.bindLinks[req][path][ww][n], self.bindLinks[req][path][w][n] 
 
             for w in range(0, width): 
                 links = self.bindLinks[req][path][w]
