@@ -28,7 +28,6 @@ class OnlineAlgorithm(AlgorithmBase):
         self.allowRecoveryPaths = allowRecoveryPaths
         self.requests = []
         self.bindLinks = {}
-        self.extraLinks = {}
         self.state = {}
         self.linkLifetime = 30
 
@@ -50,8 +49,7 @@ class OnlineAlgorithm(AlgorithmBase):
             (src, dst) = req
             self.totalNumOfReq += 1
             self.requests.append((src, dst, self.timeSlot))
-            self.bindLinks[(src, dst, self.timeSlot)] = []
-            self.extraLinks[(src, dst, self.timeSlot)] = []
+            self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
 
         if len(self.requests) > 0:
@@ -64,14 +62,14 @@ class OnlineAlgorithm(AlgorithmBase):
                 break
             pick = candidates[-1]   # pick -> PickedPath 
 
-            print('---')
-            for c in candidates:
-                print('[', self.name, '] Path:', [x.id for x in c.path])
-                print('[', self.name, '] EXT:', c.weight)
-                print('[', self.name, '] Width:', c.width) 
+            # print('---')
+            # for c in candidates:
+            #     print('[', self.name, '] Path:', [x.id for x in c.path])
+            #     print('[', self.name, '] EXT:', c.weight)
+            #     print('[', self.name, '] Width:', c.width) 
 
-            print('[', self.name, '] Pick:', [x.id for x in pick.path])
-            print('---')
+            # print('[', self.name, '] Pick:', [x.id for x in pick.path])
+            # print('---')
 
             if pick.weight > 0.0: 
                 self.pickAndAssignPath(pick)
@@ -107,7 +105,7 @@ class OnlineAlgorithm(AlgorithmBase):
             if maxM == 0:   # not enough qubit
                 continue
 
-            if self.state[req] == 1:   # If the req has binding links, continue
+            if self.state[req] != 0:   # If the req has binding links, continue
                 continue
 
             for w in range(maxM, 0, -1): # w = maxM, maxM-1, maxM-2, ..., 1
@@ -196,31 +194,34 @@ class OnlineAlgorithm(AlgorithmBase):
         return candidates
 
     def pickAndAssignPath(self, pick: PickedPath, majorPath: PickedPath = None):
-        req = tuple()
-        if majorPath != None:
-            self.recoveryPaths[majorPath].append(pick)
-            req = (majorPath.path[0], majorPath.path[-1], pick.time)
-        else:
-            self.majorPaths.append(pick)
-            self.recoveryPaths[pick] = list()
-            req = (pick.path[0], pick.path[-1], pick.time)
+        # req = tuple()
+        # if majorPath != None:
+        #     self.recoveryPaths[majorPath].append(pick)
+        #     req = (majorPath.path[0], majorPath.path[-1], pick.time)
+        # else:
+        #     self.majorPaths.append(pick)
+        #     self.recoveryPaths[pick] = list()
+        #     req = (pick.path[0], pick.path[-1], pick.time)
 
+        self.majorPaths.append(pick)
+        path = tuple(pick.path)        
         width = pick.width
+        time = pick.time
+        req = (path[0], path[-1], time)
+        self.bindLinks[req][path] = []
 
-        for i in range(0, len(pick.path) - 1):
-            links = []
-            n1, n2 = pick.path[i], pick.path[i+1]
-
-            for link in n1.links:
-                if link.contains(n2) and not link.assigned:
-                    links.append(link)
-            links = sorted(links, key=lambda q: q.id)
-
-            for i in range(0, width):
-                self.totalUsedQubits += 2
-                links[i].assignQubits()
-                if majorPath == None: 
-                    self.bindLinks[req].append(links[i])
+        # Assign Qubits for links in path 
+        for w in range(0, width):
+            self.bindLinks[req][path].append([])
+            for s in range(0, len(path) - 1):
+                n1 = path[s]
+                n2 = path[s+1]
+                for link in n1.links:
+                    if link.contains(n2) and (not link.assigned):
+                        self.totalUsedQubits += 2
+                        link.assignQubits()
+                        self.bindLinks[req][path][w].append(link)
+                        break    
 
     def P2Extra(self):
         for majorPath in self.majorPaths:
@@ -239,54 +240,55 @@ class OnlineAlgorithm(AlgorithmBase):
                     if pick.weight > 0.0: 
                         self.pickAndAssignPath(pick, majorPath)
 
-    def checkReqState(self):
-            finished = []
-            unfinished = []
-            reallocated = []
+    def swapped(self, path, links):
+        # Calculate the continuous all succeed links 
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
 
-            for pathWithWidth in self.majorPaths:
-                majorPath = pathWithWidth.path
-                time = pathWithWidth.time
-                req = (majorPath[0], majorPath[-1], time)
+            if not prevLink.entangled:
+                return path[0]
 
-                if req not in self.requests:    
-                    if req in self.bindLinks:   # If the SD-pair has finished but links are not deleted
-                        print('[', self.name, '] Finish')
-                        print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                        for link in self.bindLinks[req]:
-                            link.clearEntanglement()
-                        self.bindLinks.pop(req)
-                        finished.append(pathWithWidth)
-                    else: # If the SD-pair has finished and release links
-                        print('[', self.name, '] Finish and No Remain Links')
-                        finished.append(pathWithWidth)
-                elif req in self.requests and len(self.bindLinks[req]) == 0 and self.state[req] == 1:   # If the request using all links but failed, reallocate
-                    print('[', self.name, '] Reallocated')
-                    reallocated.append(pathWithWidth)
-                    self.state[req] = 0
-                else:   # If the SD-pair unfinished
-                    print('[', self.name, '] Unfinished')
-                    print('[', self.name, '] Remain Links:', len(self.bindLinks[req]))
-                    unfinished.append(pathWithWidth)
-                    self.state[req] = 1
+        if len(path) == 2:  # If path just 2 length 
+            if not links[0].entangled:
+                return path[0]
+            else:
+                return path[1]
+              
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
 
-            print('---')
-            return finished, unfinished, reallocated
+            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
+                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
+                    for link in links:
+                        if link.swapped():
+                            link.clearPhase4Swap() 
+                    return path[0]  # Forward 0 hop
+                else:       
+                    if n == len(path)-2:    # Swap succeed and the next hop is terminal than forward to it
+                        return path[-1]
+                    else:   
+                        return path[0]  # Forward 0 hop
+            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and prevLink.swappedAt(path[n]):
+                continue
 
     def p4(self):
+        finished = []
+
         for pathWithWidth in self.majorPaths:
             width = pathWithWidth.width
-            majorPath = pathWithWidth.path
+            path = tuple(pathWithWidth.path)
             time = pathWithWidth.time
-            req = (majorPath[0], majorPath[-1], time)
-            links = self.bindLinks[req]
-            oldNumOfPairs = len(self.topo.getEstablishedEntanglements(majorPath[0], majorPath[-1]))
-            acc = majorPath
-            theSwappedLinks = set()
+            req = (path[0], path[-1], time)
+            self.state[req] = 1 
 
+            # 
+            # If allow extra links end
+            #
             if self.allowRecoveryPaths:
                 recoveryPaths = self.recoveryPaths[pathWithWidth]   # recoveryPaths -> [pickedPath, ...]
-                recoveryPaths = sorted(recoveryPaths, key=lambda x: len(x.path)*10000 + majorPath.index(x.path[0])) # sort recoveryPaths by it recoverypath length and the index of the first node in recoveryPath  
+                recoveryPaths = sorted(recoveryPaths, key=lambda x: len(x.path)*10000 + path.index(x.path[0])) # sort recoveryPaths by it recoverypath length and the index of the first node in recoveryPath  
 
                 # Construct pathToRecoveryPaths table
                 for recoveryPath in recoveryPaths:
@@ -310,23 +312,23 @@ class OnlineAlgorithm(AlgorithmBase):
                 # for end 
 
                 rpToWidth = {tuple(recoveryPath.path): recoveryPath.width for recoveryPath in recoveryPaths}  # rpToWidth -> {tuple: int, ...}
-            # 
-            # If allow extra links end
-            #
-               
+  
             # for w-width major path, treat it as w different paths, and repair separately
             for w in range(0, width):
                 brokenEdges = list()    # [(int, int), ...]
 
+                # 
+                # If allow extra links end
+                #
                 if self.allowRecoveryPaths:
                     brokenEdges = list()    # [(int, int), ...]
                     # find all broken edges on the major path
                     # 尋找在 majorPath 裡斷掉的 link，其中一條斷掉就要記錄。
-                    for i in range(0, len(majorPath) - 1):
+                    for i in range(0, len(path) - 1):
                         i1 = i
                         i2 = i+1
-                        n1 = majorPath[i1]
-                        n2 = majorPath[i2]
+                        n1 = path[i1]
+                        n2 = path[i2]
                         broken = True
                         for link in n1.links:
                             if link.contains(n2) and link.assigned and link.notSwapped() and link.entangled:
@@ -345,7 +347,7 @@ class OnlineAlgorithm(AlgorithmBase):
                     # 掃描所有可以用的 recoveryPath，看它斷在 majorPath 的哪裡，並標記。
                     for recoveryPath in recoveryPaths:
                         rp = recoveryPath.path
-                        s1, s2 = majorPath.index(rp[0]), majorPath.index(rp[-1])
+                        s1, s2 = path.index(rp[0]), path.index(rp[-1])
 
                         for j in range(s1, s2):
                             if (j, j+1) in brokenEdges:
@@ -374,13 +376,13 @@ class OnlineAlgorithm(AlgorithmBase):
                                 rps.remove(rp)
 
                         # sort rps by the start id in majorPath
-                        rps = sorted(rps, key=lambda x: majorPath.index(x[0]) * 10000 + majorPath.index(x[-1]))
+                        rps = sorted(rps, key=lambda x: path.index(x[0]) * 10000 + path.index(x[-1]))
 
                         for rp in rps:
-                            if majorPath.index(rp[0]) < next:
+                            if path.index(rp[0]) < next:
                                 continue 
 
-                            next = majorPath.index(rp[-1])
+                            next = path.index(rp[-1])
                             pickedRps = realPickedRps
                             repairedEdges = realRepairedEdges
                             otherCoveredEdges = set(rpToEdges[tuple(rp)]) - {brokenEdge}
@@ -451,90 +453,69 @@ class OnlineAlgorithm(AlgorithmBase):
                 # If allow extra links end
                 #
 
-                nodes = []
-                prevLinks = []
-                nextLinks = [] 
+                links = self.bindLinks[req][path][w]
+                arrive = self.swapped(path, links)
 
-                # swap (select links)
-                for i in range(1, len(acc) - 1):
-                    prev = acc[i-1]
-                    curr = acc[i]
-                    next = acc[i+1]
-                    prevLink = []
-                    nextLink = []  
-                 
-                    for link in curr.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            prevLink.append(link)
-                            break
-
-                    for link in curr.links:
-                        if link.entangled and (link.n1 == next and not link.s2 or link.n2 == next and not link.s1) and link in links:
-                            nextLink.append(link)
-                            break
-
-                    if len(prevLink) == 0 or len(nextLink) == 0:
-                        break
-                    
-                    nodes.append(curr)
-                    prevLinks.append(prevLink[0])
-                    nextLinks.append(nextLink[0])
-
-                # swap 
-                if len(nodes) == len(acc) - 2 and len(acc) > 2:
-                    for (node, l1, l2) in zip(nodes, prevLinks, nextLinks):                    
-                        node.attemptSwapping(l1, l2)
-                        theSwappedLinks.add(l1)
-                        theSwappedLinks.add(l2)
-
-                # path length = 2
-                if len(acc) == 2:
-                    prev = acc[0]
-                    curr = acc[1]
-                    for link in prev.links:
-                        if link.entangled and (link.n1 == prev and not link.s2 or link.n2 == prev and not link.s1) and link in links:
-                            theSwappedLinks.add(link)
-                            break
+                if req[1] == arrive:
+                    finished.append(req)
             # for w end
-
-            succ = len(self.topo.getEstablishedEntanglements(acc[0], acc[-1])) - oldNumOfPairs
-            
-            # Remove finished requests for 1 length 
-            if len(acc) == 2:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)
-            
-            # Remove finished requests
-            while succ > 0:
-                if req in self.requests:
-                    self.totalTime += self.timeSlot - time
-                    self.requests.remove(req)   
-                succ -= 1
-            
-            # Delete used links and clear entanglement for swapped 
-            for link in theSwappedLinks:
-                link.clearEntanglement()
-                if link in links:
-                    links.remove(link)
         # for pathWithWidth end
 
-        finished, unfinished, reallocated = self.checkReqState()
-
-        for pathWithWidth in finished:
-            self.majorPaths.remove(pathWithWidth)
-
-        for pathWithWidth in reallocated:
-            self.majorPaths.remove(pathWithWidth)
+        # Calculate the idle time for all requests
+        for req in self.requests:
+            if self.state[req] == 0: 
+                self.result.idleTime += 1
         
-        # link dead
-        for req in self.bindLinks:
-            for link in self.bindLinks[req]:
-                if link.entangled == True:
-                    link.lifetime += 1
-                    if link.lifetime > self.linkLifetime:
-                        link.entangled == False
-                        link.lifetime = 0
+        removedPickedPath = []
+
+        # Calculate the finished number of requests and delete 
+        for req in finished:
+            if req in self.requests:
+                print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
+                self.totalTime += self.timeSlot - req[2]
+                self.requests.remove(req)
+
+        # Delete used links and clear entanglement for finished SD-pairs 
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+
+            if req in finished: 
+                if path in self.bindLinks[req]:
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    removedPickedPath.append(pathWithWidth)
+
+        for req in finished: 
+            if req in self.bindLinks:          
+                self.bindLinks.pop(req)
+
+        for pathWithWidth in removedPickedPath:
+            self.majorPaths.remove(pathWithWidth)
+       
+        # Update links' lifetime       
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+  
+            for w in range(0, width): 
+                links = self.bindLinks[req][path][w]
+                for link in links:
+                    if link.entangled == True:
+                        link.lifetime += 1
+                        if link.lifetime > self.linkLifetime:
+                            if link.swapped():
+                                for link2 in links:
+                                    if link2.swapped():
+                                        link2.clearPhase4Swap()
+                            else:
+                                link.entangled == False
+                                link.lifetime = 0
                         
 
         #                       #                
@@ -542,10 +523,10 @@ class OnlineAlgorithm(AlgorithmBase):
         #                       #
 
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
-        for req in self.requests:
+        for remainReq in self.requests:
+            print('[', self.name, '] Remain Requests:', remainReq[0].id, remainReq[1].id, remainReq[2])
             # self.result.unfinishedRequest += 1
-            remainTime += self.timeSlot - req[2]
+            remainTime += self.timeSlot - remainReq[2]
 
         # self.topo.clearAllEntanglements()
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)   

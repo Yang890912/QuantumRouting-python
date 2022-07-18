@@ -18,7 +18,7 @@ class RecoveryPath:
 
 class FER(AlgorithmBase):
 
-    def __init__(self, topo, allowRecoveryPaths = True):
+    def __init__(self, topo, allowRecoveryPaths = False):
         super().__init__(topo)
         self.name = "FER"
         self.majorPaths = []            # [PickedPath, ...]
@@ -254,7 +254,7 @@ class FER(AlgorithmBase):
 
         removedPickedPath = []
 
-        # Calculate the finished number of requests
+        # Calculate the finished number of requests and delete 
         for req in finished:
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
