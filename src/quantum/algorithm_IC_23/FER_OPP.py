@@ -20,7 +20,7 @@ class FER_OPP(AlgorithmBase):
 
     def __init__(self, topo, allowRecoveryPaths = False, k = 1):
         super().__init__(topo)
-        self.name = "FER"
+        self.name = "FER_OPP"
         self.majorPaths = []            # [PickedPath, ...]
         self.allowRecoveryPaths = allowRecoveryPaths
         self.requests = []
@@ -97,7 +97,7 @@ class FER_OPP(AlgorithmBase):
             for w in range(0, width): 
                 if intermediate not in path or intermediate == req[1] or reqUpdated[req] == 1:
                     continue 
-                
+
                 links = self.bindLinks[req][path][w]
                 _p = path[path.index(intermediate):len(path)]
                 _links = links[path.index(intermediate):len(path)-1]
@@ -504,54 +504,8 @@ if __name__ == '__main__':
     # a2 = MyAlgorithm(topo)
     # a3 = FER(topo)
     # a4 = OnlineAlgorithm(topo)
-    # samplesPerTime = 2
-
-    # while samplesPerTime < 11:
-    #     ttime = 200
-    #     rtime = 10
-    #     requests = {i : [] for i in range(ttime)}
-    #     t1 = 0
-    #     t2 = 0
-    #     t3 = 0
-    #     t4 = 0
-    #     f.write(str(samplesPerTime/2)+' ')
-    #     f.flush()
-    #     for i in range(ttime):
-    #         if i < rtime:
-    #             a = sample(topo.nodes, samplesPerTime)
-    #             for n in range(0,samplesPerTime,2):
-    #                 requests[i].append((a[n], a[n+1]))
-            
-
-    #     for i in range(ttime):
-    #         t1 = a1.work(requests[i], i)
-    #     f.write(str(t1/(samplesPerTime/2*rtime))+' ')
-    #     f.flush()
-
-    #     for i in range(ttime):
-    #         t3 = a3.work(requests[i], i)
-    #     f.write(str(t3/(samplesPerTime/2*rtime))+' ')
-    #     f.flush()
-
-    #     for i in range(ttime):
-    #         t4 = a4.work(requests[i], i)
-    #     f.write(str(t4/(samplesPerTime/2*rtime))+' ')
-    #     f.flush()
-
-    #     for i in range(ttime):
-    #         t2 = a2.work(requests[i], i)
-    #     for req in a2.requestState:
-    #         if a2.requestState[req].state == 2:
-    #             a2.requestState[req].intermediate.clearIntermediate()    
-
-    #     f.write(str(t2/(samplesPerTime/2*rtime))+'\n')
-    #     f.flush()
-    #     samplesPerTime += 2 
-
-    # # 5XX
-    # f.close()
-    
-    samplesPerTime = 6
+ 
+    samplesPerTime = 10
     ttime = 100
     rtime = 5
     requests = {i : [] for i in range(ttime)}

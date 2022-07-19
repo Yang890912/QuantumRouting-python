@@ -4,6 +4,7 @@ from AlgorithmBase import AlgorithmBase
 from GreedyHopRouting import GreedyHopRouting
 from OnlineAlgorithm import OnlineAlgorithm
 from FER import FER
+from FER_OPP import FER_OPP
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
@@ -368,55 +369,10 @@ if __name__ == '__main__':
     # f = open('logfile.txt', 'w')
     
     a1 = GreedyHopRouting_OPP(topo, 1)
-    a2 = GreedyHopRouting_OPP(topo, 2)
-    a3 = GreedyHopRouting(topo)
-    # samplesPerTime = 2
-
-    # while samplesPerTime < 11:
-    #     ttime = 200
-    #     rtime = 10
-    #     requests = {i : [] for i in range(ttime)}
-    #     t1 = 0
-    #     t2 = 0
-    #     t3 = 0
-    #     t4 = 0
-    #     f.write(str(samplesPerTime/2)+' ')
-    #     f.flush()
-    #     for i in range(ttime):
-    #         if i < rtime:
-    #             a = sample(topo.nodes, samplesPerTime)
-    #             for n in range(0,samplesPerTime,2):
-    #                 requests[i].append((a[n], a[n+1]))
-            
-
-    #     for i in range(ttime):
-    #         t1 = a1.work(requests[i], i)
-    #     f.write(str(t1/(samplesPerTime/2*rtime))+' ')
-    #     f.flush()
-
-    #     for i in range(ttime):
-    #         t3 = a3.work(requests[i], i)
-    #     f.write(str(t3/(samplesPerTime/2*rtime))+' ')
-    #     f.flush()
-
-    #     for i in range(ttime):
-    #         t4 = a4.work(requests[i], i)
-    #     f.write(str(t4/(samplesPerTime/2*rtime))+' ')
-    #     f.flush()
-
-    #     for i in range(ttime):
-    #         t2 = a2.work(requests[i], i)
-    #     for req in a2.requestState:
-    #         if a2.requestState[req].state == 2:
-    #             a2.requestState[req].intermediate.clearIntermediate()    
-
-    #     f.write(str(t2/(samplesPerTime/2*rtime))+'\n')
-    #     f.flush()
-    #     samplesPerTime += 2 
-
-    # # 5XX
-    # f.close()
-    
+    # a2 = GreedyHopRouting_OPP(topo, 2)
+    # a3 = GreedyHopRouting(topo)
+    a4 = FER_OPP(topo, 1)
+ 
     samplesPerTime = 10
     ttime = 100
     rtime = 5
@@ -442,16 +398,16 @@ if __name__ == '__main__':
             print(node.id, memory[node.id]-node.remainingQubits)
 
     print('---')
-    # for link in topo.links:
-    #     link.clearEntanglement()
+    for link in topo.links:
+        link.clearEntanglement()
 
-    # a2
-    # for i in range(ttime):
-    #     a2.work(requests[i], i)
+    # a4
+    for i in range(ttime):
+        a4.work(requests[i], i)
 
-    # for node in topo.nodes:
-    #     if memory[node.id] != node.remainingQubits:
-    #         print(node.id, memory[node.id]-node.remainingQubits)
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
 
     print('---')
     # for link in topo.links:
