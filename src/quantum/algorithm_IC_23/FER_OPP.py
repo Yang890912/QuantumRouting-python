@@ -273,39 +273,6 @@ class FER_OPP(AlgorithmBase):
                         self.bindLinks[req][path][w].append(link)
                         break    
  
-    # def swapped(self, path, links):
-    #     # Calculate the continuous all succeed links 
-    #     for n in range(1, len(path)-1):
-    #         prevLink = links[n-1]
-    #         nextLink = links[n]
-
-    #         if not prevLink.entangled:
-    #             return path[0]
-
-    #     if len(path) == 2:  # If path just 2 length 
-    #         if not links[0].entangled:
-    #             return path[0]
-    #         else:
-    #             return path[1]
-              
-    #     for n in range(1, len(path)-1):
-    #         prevLink = links[n-1]
-    #         nextLink = links[n]
-
-    #         if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
-    #             if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
-    #                 for link in links:
-    #                     if link.swapped():
-    #                         link.clearPhase4Swap() 
-    #                 return path[0]  # Forward 0 hop
-    #             else:       
-    #                 if n == len(path)-2:    # Swap succeed and the next hop is terminal than forward to it
-    #                     return path[-1]
-    #                 else:   
-    #                     return path[0]  # Forward 0 hop
-    #         elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and prevLink.swappedAt(path[n]):
-    #             continue
-
     def swapped(self, path, links):
         succNumOfLinks = 0
 
@@ -333,14 +300,14 @@ class FER_OPP(AlgorithmBase):
         if succNumOfLinks < self.k:
             return path[0]  # Forward 0 hop
         
-        if self.k == 1:
+        if self.k == 1 and succNumOfLinks == 1:
             # if path[1].remainingQubits < 1:
             #     return path[0]  # Forward 0 hop
             # else:
             #     path[1].remainingQubits -= 1
             #     return path[1]  # Forward 1 hop
 
-            # No consume any memory
+            # Can consume extra memory
             path[1].remainingQubits -= 1
             return path[1]  # Forward 1 hop
 
@@ -349,20 +316,24 @@ class FER_OPP(AlgorithmBase):
             nextLink = links[n]
 
             if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
-                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
-                    if self.k == 1 :
-                        return path[n]
+                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed 
+                    if self.k == 1 :    # satisfy k = 1
+                        if path[n].remainingQubits < 1: # has enough memory
+                            return path[0]  # Forward 0 hop
+                        else:
+                            path[n].remainingQubits -= 1
+                            return path[n]  # Forward n hop
                     else:
                         for link in links:
                             if link.swapped():
                                 link.clearPhase4Swap() 
                         return path[0]  # Forward 0 hop
-                else:       
-                    if n+1 >= self.k or n == len(path)-2:   # Swap succeed and the next hop is distance or immediate than forward to it
+                else:                                               # Swap succeed 
+                    if n+1 >= self.k or n == len(path)-2:   # satisfy k   
                         if path[n+1] == path[-1]:   # next terminal
                             return path[-1]
 
-                        if path[n+1].remainingQubits < 1:
+                        if path[n+1].remainingQubits < 1:   # has enough memory
                             return path[0]  # Forward 0 hop
                         else:
                             path[n+1].remainingQubits -= 1
@@ -371,8 +342,6 @@ class FER_OPP(AlgorithmBase):
                         return path[0]      # Forward 0 hop
             elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and prevLink.swappedAt(path[n]):
                 continue
-
-        return path[0]
 
     def p4(self):
         reqUpdated = {req: 0 for req in self.reqToIntermediate}
