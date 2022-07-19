@@ -16,12 +16,14 @@ class RecoveryPath:
     taken: int 
     available: int
 
-class FER_OPP(AlgorithmBase):
+class OnlineAlgorithm_OPP(AlgorithmBase):
 
     def __init__(self, topo, allowRecoveryPaths = False, k = 1):
         super().__init__(topo)
-        self.name = "FER_OPP"
+        self.name = "QCAST_OPP"
         self.majorPaths = []            # [PickedPath, ...]
+        self.recoveryPaths = {}         # {PickedPath: [PickedPath, ...], ...}
+        self.pathToRecoveryPaths = {}   # {PickedPath : [RecoveryPath, ...], ...}
         self.allowRecoveryPaths = allowRecoveryPaths
         self.requests = []
         self.bindLinks = {}
@@ -40,6 +42,9 @@ class FER_OPP(AlgorithmBase):
 
     # P2
     def p2(self):
+        # self.majorPaths.clear()
+        self.recoveryPaths.clear()
+        self.pathToRecoveryPaths.clear()
 
         for req in self.srcDstPairs:
             (src, dst) = req
@@ -62,8 +67,8 @@ class FER_OPP(AlgorithmBase):
             # for c in candidates:
             #     print('[', self.name, '] Path:', [x.id for x in c.path])
             #     print('[', self.name, '] EXT:', c.weight)
-            #     print('[', self.name, '] Width:', c.width)
-            
+            #     print('[', self.name, '] Width:', c.width) 
+
             # print('[', self.name, '] Pick:', [x.id for x in pick.path])
             # print('---')
 
@@ -71,6 +76,11 @@ class FER_OPP(AlgorithmBase):
                 self.pickAndAssignPath(pick)
             else:
                 break
+
+        if self.allowRecoveryPaths:
+            print('[', self.name, '] P2Extra')
+            self.P2Extra()
+            print('[', self.name, '] P2Extra End')
         
         reqUpdated = {req: 0 for req in self.reqToIntermediate}
         finished = []
@@ -86,13 +96,6 @@ class FER_OPP(AlgorithmBase):
 
             if req in finished:
                 continue
-
-            for n in range(0, len(path)-1):
-                for w in range(0, width): 
-                    if not self.bindLinks[req][path][w][n].entangled and not self.bindLinks[req][path][w][n].swapped():
-                        for ww in range(w+1, width):
-                            if self.bindLinks[req][path][ww][n].entangled and not self.bindLinks[req][path][ww][n].swapped():
-                                self.bindLinks[req][path][w][n], self.bindLinks[req][path][ww][n] = self.bindLinks[req][path][ww][n], self.bindLinks[req][path][w][n] 
 
             for w in range(0, width): 
                 if intermediate not in path or intermediate == req[1] or reqUpdated[req] == 1:
@@ -151,12 +154,13 @@ class FER_OPP(AlgorithmBase):
     def calCandidates(self, requests: list): # pairs -> [(Node, Node), ...]
         candidates = [] 
         for req in requests:
+
             candidate = []
             (src, dst, time) = req
             maxM = min(src.remainingQubits, dst.remainingQubits)
             if maxM == 0:   # not enough qubit
                 continue
-            
+
             if self.state[req] != 0:   # If the req has binding links, continue
                 continue
 
@@ -211,7 +215,7 @@ class FER_OPP(AlgorithmBase):
 
                 # Dijkstra by EXT
                 while len(q) != 0:
-                    contain = q.pop(-1) # Pop the node with the highest E
+                    contain = q.pop(-1) # pop the node with the highest E
                     u, prev = contain[1], contain[2]
                     if u in prevFromSrc.keys():
                         continue
@@ -246,6 +250,14 @@ class FER_OPP(AlgorithmBase):
         return candidates
 
     def pickAndAssignPath(self, pick: PickedPath, majorPath: PickedPath = None):
+        # req = tuple()
+        # if majorPath != None:
+        #     self.recoveryPaths[majorPath].append(pick)
+        #     req = (majorPath.path[0], majorPath.path[-1], pick.time)
+        # else:
+        #     self.majorPaths.append(pick)
+        #     self.recoveryPaths[pick] = list()
+        #     req = (pick.path[0], pick.path[-1], pick.time)
 
         self.majorPaths.append(pick)
         path = tuple(pick.path)        
@@ -267,7 +279,24 @@ class FER_OPP(AlgorithmBase):
                         link.assignQubits()
                         self.bindLinks[req][path][w].append(link)
                         break    
- 
+
+    def P2Extra(self):
+        for majorPath in self.majorPaths:
+            p = majorPath.path
+
+            for l in range(1, self.topo.k + 1):
+                for i in range(0, len(p) - l):
+                    (src, dst) = (p[i], p[i+l])
+
+                    candidates = self.calCandidates([(src, dst, self.timeSlot)]) # candidates -> [PickedPath, ...]   
+                    candidates = sorted(candidates, key=lambda x: x.weight)
+                    if len(candidates) == 0:
+                        continue
+                    pick = candidates[-1]   # pick -> PickedPath
+
+                    if pick.weight > 0.0: 
+                        self.pickAndAssignPath(pick, majorPath)
+
     def swapped(self, path, links):
         succNumOfLinks = 0
 
@@ -342,7 +371,6 @@ class FER_OPP(AlgorithmBase):
         reqUpdated = {req: 0 for req in self.reqToIntermediate}
         finished = []
 
-        # Swapped (2)
         for pathWithWidth in self.majorPaths:
             width = pathWithWidth.width
             path = tuple(pathWithWidth.path)
@@ -351,16 +379,7 @@ class FER_OPP(AlgorithmBase):
             intermediate = self.reqToIntermediate[req]
             self.state[req] = 1 
 
-            if req in finished:
-                continue
-
-            for n in range(0, len(path)-1):
-                for w in range(0, width): 
-                    if not self.bindLinks[req][path][w][n].entangled and not self.bindLinks[req][path][w][n].swapped():
-                        for ww in range(w+1, width):
-                            if self.bindLinks[req][path][ww][n].entangled and not self.bindLinks[req][path][ww][n].swapped():
-                                self.bindLinks[req][path][w][n], self.bindLinks[req][path][ww][n] = self.bindLinks[req][path][ww][n], self.bindLinks[req][path][w][n] 
-
+            # for w-width major path, treat it as w different paths, and repair separately
             for w in range(0, width):
                 if intermediate not in path or intermediate == req[1] or reqUpdated[req] == 1:
                     continue 
@@ -381,12 +400,14 @@ class FER_OPP(AlgorithmBase):
 
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
-      
+            # for w end
+        # for pathWithWidth end
+
         # Calculate the idle time for all requests
         for req in self.requests:
             if self.state[req] == 0: 
                 self.result.idleTime += 1
-
+        
         removedPickedPath = []
 
         # Calculate the finished number of requests and delete 
@@ -437,6 +458,7 @@ class FER_OPP(AlgorithmBase):
                             else:
                                 link.entangled == False
                                 link.lifetime = 0
+                        
 
         #                       #                
         #   RECORD EXPERIMENT   #
@@ -464,12 +486,12 @@ if __name__ == '__main__':
     topo = Topo.generate(100, 0.9, 5, 0.001, 6)
     # f = open('logfile.txt', 'w')
     
-    a1 = FER_OPP(topo)
-    # a2 = MyAlgorithm(topo)
+    a1 = OnlineAlgorithm_OPP(topo)
+    # a2 = GreedyHopRouting(topo)
     # a3 = FER(topo)
     # a4 = OnlineAlgorithm(topo)
- 
-    samplesPerTime = 10
+
+    samplesPerTime = 6
     ttime = 100
     rtime = 5
     requests = {i : [] for i in range(ttime)}

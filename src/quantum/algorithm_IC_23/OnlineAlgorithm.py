@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 import sys
 sys.path.append("..")
@@ -81,17 +80,6 @@ class OnlineAlgorithm(AlgorithmBase):
             self.P2Extra()
             print('[', self.name, '] P2Extra End')
         
-        for req in self.requests:
-            pick = False
-            for pathWithWidth in self.majorPaths:
-                p = pathWithWidth.path
-                if (p[0], p[-1], pathWithWidth.time) == req:
-                    pick = True
-                    break
-                    
-            if not pick:
-                self.result.idleTime += 1
-
         print('[', self.name, '] P2 End')
 
     # Calculate the candidate path for each requests 
@@ -568,9 +556,6 @@ if __name__ == '__main__':
     
     for i in range(ttime):
         t1 = a1.work(requests[i], i)
-
-    # for i in range(ttime):
-    #     t3 = a3.work(requests[i], i)
 
     for node in topo.nodes:
         if memory[node.id] != node.remainingQubits:
