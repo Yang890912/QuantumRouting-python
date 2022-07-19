@@ -201,16 +201,16 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
             self.state[req] = 1 
+            intermediate = self.reqToIntermediate[req]
+
             if req in finished:
                 continue
-
+            
             for w in range(0, width): 
-                intermediate = self.reqToIntermediate[req]
-                links = self.bindLinks[req][path][w]
-                
                 if intermediate not in p or intermediate == req[1] or reqUpdated[req] == 1:
                     continue
 
+                links = self.bindLinks[req][path][w]
                 _p = p[p.index(intermediate):len(p)]
                 _links = links[p.index(intermediate):len(p)-1]
                 arrive = self.swapped(_p, _links)
@@ -267,16 +267,16 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         # Swapped (2)
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
+            intermediate = self.reqToIntermediate[req]
+
             if req in finished:
                 continue
 
             for w in range(0, width): 
-                intermediate = self.reqToIntermediate[req]
-                links = self.bindLinks[req][path][w]
-
                 if intermediate not in p or intermediate == req[1] or reqUpdated[req] == 1:
                     continue
-                
+
+                links = self.bindLinks[req][path][w]
                 _p = p[p.index(intermediate):len(p)]
                 _links = links[p.index(intermediate):len(p)-1]
                 arrive = self.swapped(_p, _links)
@@ -446,21 +446,21 @@ if __name__ == '__main__':
     #     link.clearEntanglement()
 
     # a2
-    for i in range(ttime):
-        a2.work(requests[i], i)
+    # for i in range(ttime):
+    #     a2.work(requests[i], i)
 
-    for node in topo.nodes:
-        if memory[node.id] != node.remainingQubits:
-            print(node.id, memory[node.id]-node.remainingQubits)
+    # for node in topo.nodes:
+    #     if memory[node.id] != node.remainingQubits:
+    #         print(node.id, memory[node.id]-node.remainingQubits)
 
     print('---')
     # for link in topo.links:
     #     link.clearEntanglement()
     
     # a3
-    for i in range(ttime):
-        a3.work(requests[i], i)
+    # for i in range(ttime):
+    #     a3.work(requests[i], i)
 
-    for node in topo.nodes:
-        if memory[node.id] != node.remainingQubits:
-            print(node.id, memory[node.id]-node.remainingQubits)
+    # for node in topo.nodes:
+    #     if memory[node.id] != node.remainingQubits:
+    #         print(node.id, memory[node.id]-node.remainingQubits)
