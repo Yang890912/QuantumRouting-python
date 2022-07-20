@@ -16,21 +16,26 @@ from random import sample
 EPS = 1e-6
 
 class Path:
-	nodesOnPath: list
-	linksOnPath: list
+    def __init__(self):
+        self.nodes = []
+        self.links = []
+        self.width = 0
 
 class Request:
-    src: int
-    dst: int
-    currentTemp: int
-    paths: list # list of Path
+    def __init__(self, src, dst, index):
+        self.src = src
+        self.dst = dst
+        self.index = index
+        self.needFindPath = True
+        self.currentTemp = (-1, -1) # [pathsIndex, nodesIndex]
+        self.paths = []
 
 class REPS(AlgorithmBase):
     def __init__(self, topo):
         super().__init__(topo)
         self.name = "REPS"
         self.requests = []
-        self.bindLinks = []
+        self.isBind = {link : False for link in self.topo.links}
         self.totalRequest = 0
         self.totalUsedQubits = 0
         self.totalWaitingTime = 0
@@ -41,7 +46,6 @@ class REPS(AlgorithmBase):
         return (varName + str(parName)).replace(' ', '').replace(',', '][')
     
     def printResult(self):
-        self.topo.clearAllEntanglements()
         self.result.waitingTime = self.totalWaitingTime / self.totalRequest
         self.result.usedQubits = self.totalUsedQubits / self.totalRequest
         
@@ -53,37 +57,46 @@ class REPS(AlgorithmBase):
 
     def AddNewSDpairs(self):
         for (src, dst) in self.srcDstPairs:
+            self.requests.append(Request(src, dst, self.totalRequest))
             self.totalRequest += 1
-            self.requests.append((src, dst, self.timeSlot))
 
         self.srcDstPairs = []
+        self.SDpairToRequest = {}
         for request in self.requests:
-            src = request[0]
-            dst = request[1]
-            if (src, dst) not in self.srcDstPairs:
-                self.srcDstPairs.append((src, dst))
+            if request.needFindPath:
+                src = request.src
+                dst = request.src
+                if (src, dst) not in self.usedSDpair:
+                    self.SDpairToRequest[(src, dst)] = request
+                    self.srcDstPairs.append((src, dst))
 
     def p2(self):
         self.AddNewSDpairs()
         self.totalWaitingTime += len(self.requests)
         self.result.idleTime += len(self.requests)
         if len(self.srcDstPairs) > 0:
+            self.PFT() # find path for request
+        if len(self.requests) > 0:
+            self.assignQubitsForBindLinks()
             self.result.numOfTimeslot += 1
-            self.PFT() # compute (self.ti, self.fi)
         print('[REPS] p2 end')
     
     def p4(self):
-		
         print('[REPS] p4 end') 
+        self.forward()
         self.printResult()
         return self.result
 
     
-    # return fi(u, v)
+    def assignQubitsForBindLinks(self):
+        pass
 
-    def LP1(self):
+    def forward(self):
+        pass
+
+    def LP1(self): # compute self.fi_LP
         print('[REPS] LP1 start')
-        # initialize fi(u, v) ans ti
+        # initialize fi_LP(u, v) ans ti_LP
 
         self.fi_LP = {SDpair : {} for SDpair in self.srcDstPairs}
         self.ti_LP = {SDpair : 0 for SDpair in self.srcDstPairs}
@@ -170,10 +183,11 @@ class REPS(AlgorithmBase):
             varName = self.genNameByComma('t', [i])
             self.ti_LP[SDpair] = m.getVarByName(varName).x
         print('[REPS] LP1 end')
+
     def edgeCapacity(self, u, v):
         capacity = 0
         for link in u.links:
-            if link.contains(v):
+            if link.contains(v) and not self.isBind[link]:
                 capacity += 1
         used = 0
         for SDpair in self.srcDstPairs:
@@ -185,7 +199,16 @@ class REPS(AlgorithmBase):
         # path[-1] is the path of weight
         return -path[-1]
     
-    def PFT(self):
+
+    def findAllLinkContain(self, u: Node, v: Node):
+        links = []
+        for link in u.links:
+            if link.contain(v):
+                links.append(link)
+
+        return links
+    
+    def PFT(self): # find path for request
 
         # initialize fi and ti
         self.fi = {SDpair : {} for SDpair in self.srcDstPairs}
@@ -204,10 +227,12 @@ class REPS(AlgorithmBase):
             Pi = {}
             paths = []
             for SDpair in self.srcDstPairs:
-                Pi[SDpair] = self.findPathsForPFT(SDpair)
+                # return paths for SDpair, path[-1] = width
+                Pi[SDpair] = self.findPathsForPFT(SDpair) 
 
             for SDpair in self.srcDstPairs:
                 K = len(Pi[SDpair])
+                # update resource
                 for k in range(K):
                     width = math.floor(Pi[SDpair][k][-1])
                     Pi[SDpair][k][-1] -= width
@@ -221,6 +246,16 @@ class REPS(AlgorithmBase):
                         node = Pi[SDpair][k][nodeIndex]
                         next = Pi[SDpair][k][nodeIndex + 1]
                         self.fi[SDpair][(node, next)] += width
+
+                    # request find a path
+                    pathForRequest = Path()
+                    pathForRequest.width = width
+                    for nodeIndex in range(pathLen):
+                        node = Pi[SDpair][k][nodeIndex]
+                        pathForRequest.nodes.append(node)
+
+                    request = self.SDpairToRequest[SDpair]
+                    request.paths.append(pathForRequest)
 
             paths = sorted(paths, key = self.widthForSort)
 
@@ -236,9 +271,6 @@ class REPS(AlgorithmBase):
                         isable = False
                 
                 if not isable:
-                    for nodeIndex in range(pathLen - 1):
-                        node = path[nodeIndex]
-                        next = path[nodeIndex + 1]
                     continue
                 
                 failedFindPath = False
@@ -248,22 +280,39 @@ class REPS(AlgorithmBase):
                     next = path[nodeIndex + 1]
                     self.fi[SDpair][(node, next)] += 1
 
-        print('[REPS] PFT end')
+                # request find a path
+                pathForRequest = Path()
+                pathForRequest.width = 1
+                for nodeIndex in range(pathLen):
+                    node = path[nodeIndex]
+                    pathForRequest.nodes.append(node)
+
+                request = self.SDpairToRequest[SDpair]
+                request.paths.append(pathForRequest)
+
         for SDpair in self.srcDstPairs:
-            for edge in self.topo.edges:
-                u = edge[0]
-                v = edge[1]
-                need = self.fi[SDpair][(u, v)] + self.fi[SDpair][(v, u)]
-                if need:
-                    assignCount = 0
-                    for link in u.links:
-                        if link.contains(v) and link.assignable():
-                            # link(u, v) for u, v in edgeIndices)
-                            link.assignQubits()
-                            self.totalUsedQubits += 2
-                            assignCount += 1
-                            if assignCount == need:
+            request = self.SDpairToRequest[SDpair]
+            if len(request.paths) == 0:
+                # request didn't find a path
+                continue
+
+            # a reqeust find paths
+            request.needFindPath = False
+            width = request.width
+            for path in request:
+                for nodeIndex in range(len(request.nodes) - 1):
+                    node = request.nodes[nodeIndex]
+                    next = request.nodes[nodeIndex + 1]
+                    request.links.append([])
+                    targetLinks = self.findAllLinkContain(node, next)
+                    for link in targetLinks:
+                        if not self.isBind[link]:
+                            request.links[nodeIndex].append(link)
+                            self.isBind[link] = True
+                            if len(request.links[nodeIndex]) == width:
                                 break
+        print('[REPS] PFT end')
+                    
 
     def findPathsForPFT(self, SDpair):
         src = SDpair[0]
@@ -296,8 +345,9 @@ class REPS(AlgorithmBase):
         adjcentList = {node : set() for node in self.topo.nodes}
         for node in self.topo.nodes:
             for link in node.links:
-                neighbor = link.theOtherEndOf(node)
-                adjcentList[node].add(neighbor)
+                if not self.isBind[link]:
+                    neighbor = link.theOtherEndOf(node)
+                    adjcentList[node].add(neighbor)
         
         distance = {node : 0 for node in self.topo.nodes}
         visited = {node : False for node in self.topo.nodes}
