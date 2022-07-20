@@ -12,7 +12,7 @@ from random import sample
 
 class GreedyHopRouting_OPP(AlgorithmBase):
 
-    def __init__(self, topo, k):
+    def __init__(self, topo, k = 1):
         super().__init__(topo)
         self.name = "Greedy_OPP"
         self.pathsSortedDynamically = []
@@ -20,12 +20,14 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         self.bindLinks = {}
         self.state = {}
         self.reqToIntermediate = {}
+        self.reqBroken = {}
         self.linkLifetime = 30
         self.k = k
 
         self.totalTime = 0
         self.totalUsedQubits = 0
         self.totalNumOfReq = 0
+        self.totalNumOfBrokenReq = 0
 
     def prepare(self):
         self.totalTime = 0
@@ -105,6 +107,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
             self.requests.append((src, dst, self.timeSlot))
             self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
+            self.reqBroken[(src, dst, self.timeSlot)] = False
     
         # Record the number of time solve requests
         if len(self.requests) > 0:
@@ -227,6 +230,9 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 if arrive == req[1]:
                     finished.append(req) 
 
+                if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
+                    self.reqBroken[req] = True
+
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
             
@@ -235,6 +241,8 @@ class GreedyHopRouting_OPP(AlgorithmBase):
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
                 self.totalTime += self.timeSlot - req[2]
+                if self.reqBroken[req]:
+                    self.totalNumOfBrokenReq += 1
                 self.requests.remove(req)
 
             # Delete used links and clear entanglement for finished SD-pairs 
@@ -291,7 +299,10 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                     intermediate.remainingQubits += 1 
 
                 if arrive == req[1]:
-                    finished.append(req) 
+                    finished.append(req)
+
+                if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
+                    self.reqBroken[req] = True
 
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
@@ -301,6 +312,8 @@ class GreedyHopRouting_OPP(AlgorithmBase):
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
                 self.totalTime += self.timeSlot - req[2]
+                if self.reqBroken[req]:
+                    self.totalNumOfBrokenReq += 1
                 self.requests.remove(req)
 
             # Delete used links and clear entanglement for finished SD-pairs 
@@ -355,6 +368,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
 
         print('[', self.name, '] Waiting Time:', self.result.waitingTime)
         print('[', self.name, '] Idle Time:', self.result.idleTime)
+        print('[', self.name, '] Broken Requests:', self.totalNumOfBrokenReq)
         print('[', self.name, '] P4 End')
 
         return self.result
@@ -365,11 +379,11 @@ if __name__ == '__main__':
     # f = open('logfile.txt', 'w')
     
     a1 = GreedyHopRouting_OPP(topo, 1)
-    # a2 = GreedyHopRouting_OPP(topo, 2)
+    a2 = GreedyHopRouting_OPP(topo, 2)
     # a3 = GreedyHopRouting(topo)
-    a4 = FER_OPP(topo, 1)
+    # a4 = FER_OPP(topo, 1)
  
-    samplesPerTime = 10
+    samplesPerTime = 8
     ttime = 100
     rtime = 5
     requests = {i : [] for i in range(ttime)}
@@ -399,7 +413,7 @@ if __name__ == '__main__':
 
     # a2
     for i in range(ttime):
-        a4.work(requests[i], i)
+        a2.work(requests[i], i)
 
     for node in topo.nodes:
         if memory[node.id] != node.remainingQubits:
