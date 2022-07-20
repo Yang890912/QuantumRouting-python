@@ -19,7 +19,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         self.requests = []
         self.bindLinks = {}
         self.state = {}
-        self.reqToIntermediate = {}
+        self.req2Intermediate = {}
         self.reqBroken = {}
         self.linkLifetime = 30
         self.k = k
@@ -172,7 +172,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 found = True
                 path = (0.0, width, tuple(p), time, req)
                 self.pathsSortedDynamically.append(path)   # (weight, width, path, time, req)
-                self.reqToIntermediate[req] = p[0]
+                self.req2Intermediate[req] = p[0]
                 self.bindLinks[req][path] = []
 
                 # Assign Qubits for links in path 
@@ -193,7 +193,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         # while end
 
         self.pathsSortedDynamically = sorted(self.pathsSortedDynamically, key=lambda x: x[1])
-        reqUpdated = {req: 0 for req in self.reqToIntermediate}
+        reqUpdated = {req: 0 for req in self.req2Intermediate}
         finished = []
 
         print('[', self.name, '] Swapped 1')
@@ -201,7 +201,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
             self.state[req] = 1 
-            intermediate = self.reqToIntermediate[req]
+            intermediate = self.req2Intermediate[req]
 
             if req in finished:
                 continue
@@ -233,7 +233,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
                     self.reqBroken[req] = True
 
-                self.reqToIntermediate[req] = arrive
+                self.req2Intermediate[req] = arrive
                 reqUpdated[req] = 1
             
         # Delete the finished request
@@ -254,7 +254,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                             link.clearEntanglement()
                     self.pathsSortedDynamically.remove(path)
                 self.bindLinks.pop(req)
-                self.reqToIntermediate.pop(req)       
+                self.req2Intermediate.pop(req)       
 
         # Calculate the idle time for all requests
         for req in self.requests:
@@ -265,14 +265,14 @@ class GreedyHopRouting_OPP(AlgorithmBase):
     
     def p4(self):
 
-        reqUpdated = {req: 0 for req in self.reqToIntermediate}
+        reqUpdated = {req: 0 for req in self.req2Intermediate}
         finished = []
 
         print('[', self.name, '] Swapped 2')
         # Swapped (2)
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
-            intermediate = self.reqToIntermediate[req]
+            intermediate = self.req2Intermediate[req]
 
             if req in finished:
                 continue
@@ -304,7 +304,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
                     self.reqBroken[req] = True
 
-                self.reqToIntermediate[req] = arrive
+                self.req2Intermediate[req] = arrive
                 reqUpdated[req] = 1
 
         # Delete the finished request
@@ -325,7 +325,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                             link.clearEntanglement()
                     self.pathsSortedDynamically.remove(path)
                 self.bindLinks.pop(req)
-                self.reqToIntermediate.pop(req)
+                self.req2Intermediate.pop(req)
 
         # Update links' lifetime       
         for path in self.pathsSortedDynamically:

@@ -28,7 +28,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
         self.requests = []
         self.bindLinks = {}
         self.state = {}
-        self.reqToIntermediate = {}
+        self.req2Intermediate = {}
         self.reqBroken = {}
         self.linkLifetime = 30
         self.k = k
@@ -85,7 +85,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             self.P2Extra()
             print('[', self.name, '] P2Extra End')
         
-        reqUpdated = {req: 0 for req in self.reqToIntermediate}
+        reqUpdated = {req: 0 for req in self.req2Intermediate}
         finished = []
 
         # Swapped (1)
@@ -94,7 +94,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             path = tuple(pathWithWidth.path)
             time = pathWithWidth.time
             req = (path[0], path[-1], time)
-            intermediate = self.reqToIntermediate[req]
+            intermediate = self.req2Intermediate[req]
             self.state[req] = 1 
 
             if req in finished:
@@ -121,7 +121,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                 if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
                     self.reqBroken[req] = True 
 
-                self.reqToIntermediate[req] = arrive
+                self.req2Intermediate[req] = arrive
                 reqUpdated[req] = 1
       
         removedPickedPath = []
@@ -273,7 +273,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
         time = pick.time
         req = (path[0], path[-1], time)
         self.bindLinks[req][path] = []
-        self.reqToIntermediate[req] = path[0]
+        self.req2Intermediate[req] = path[0]
 
         # Assign Qubits for links in path 
         for w in range(0, width):
@@ -369,7 +369,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                 continue
 
     def p4(self):
-        reqUpdated = {req: 0 for req in self.reqToIntermediate}
+        reqUpdated = {req: 0 for req in self.req2Intermediate}
         finished = []
 
         for pathWithWidth in self.majorPaths:
@@ -377,7 +377,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             path = tuple(pathWithWidth.path)
             time = pathWithWidth.time
             req = (path[0], path[-1], time)
-            intermediate = self.reqToIntermediate[req]
+            intermediate = self.req2Intermediate[req]
             self.state[req] = 1 
 
             # for w-width major path, treat it as w different paths, and repair separately
@@ -402,7 +402,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                 if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
                     self.reqBroken[req] = True  
 
-                self.reqToIntermediate[req] = arrive
+                self.req2Intermediate[req] = arrive
                 reqUpdated[req] = 1
             # for w end
         # for pathWithWidth end
