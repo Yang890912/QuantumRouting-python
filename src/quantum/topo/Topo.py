@@ -8,7 +8,7 @@ import networkx as nx
 from .Node import Node
 from .Link import Link
 from dataclasses import dataclass
-
+from random import sample
 
 @dataclass
 class Edge(Node):
@@ -62,9 +62,47 @@ class TopoConnectionChecker:
             if not self.visited[nextNode]:
                 self.DFS(nextNode)
 
+class socialGenerator:
+    def setTopo(self, topo):
+        self.topo = topo
+        self.topo.socialRelationship = {node: [] for node in self.topo.nodes} 
+
+    def genSocialRelationship(self):
+        userNum = 20
+        node2user = {}
+        self.genSocialNetwork(userNum, self.topo.density)
+        users = [i for i in range(userNum)]
+        for i in range(len(self.topo.nodes)):
+            user = sample(users, 1)
+            node2user[i] = user[0]
+        
+        for i in range(len(self.topo.nodes)):
+            for j in range(i+1, len(self.topo.nodes)):
+                user1 = node2user[i]
+                user2 = node2user[j]     
+                if user1 in self.topo.SN[user2]:
+                    n1 = self.topo.nodes[i]
+                    n2 = self.topo.nodes[j]
+                    self.topo.socialRelationship[n1].append(n2)
+                    self.topo.socialRelationship[n2].append(n1)
+                    # print('[system] Construct social relationship: node 1 ->', n1.id, ', node 2 ->', n2.id)
+
+    def genSocialNetwork(self, userNum, density):
+        self.topo.SN = {i: [] for i in range(userNum)}  # user to user
+        # community = self.topo.community[density]
+        for i in range(userNum):
+            for j in range(i+1, userNum):
+                p = random.random()
+                if p <= density:
+                    self.topo.SN[i].append(j)
+                    self.topo.SN[j].append(i)
+                # if community[i] == community[j]:
+                #     self.topo.SN[i].append(j)
+                #     self.topo.SN[j].append(i)
+
 class Topo:
 
-    def __init__(self, G, q, k, a, degree):
+    def __init__(self, G, q, k, a, degree, density = 0.5):
         _nodes, _edges, _positions = G.nodes(), list(G.edges()), nx.get_node_attributes(G, 'pos')
         self.nodes = []
         self.links = []
@@ -73,6 +111,9 @@ class Topo:
         self.alpha = a
         self.k = k
         self.sentinel = Node(-1, (-1.0, -1.0), -1, self)
+        self.socialRelationship = {}   
+        self.SN = {}
+        self.density = density
 
         # for pos in _positions:
         #     print(_positions[pos])
@@ -166,6 +207,11 @@ class Topo:
                 break
             else:
                 print("topo is not connected", file = sys.stderr)
+
+        generator = socialGenerator()
+        generator.setTopo(topo)
+        generator.genSocialRelationship()
+    
         return topo
 
     def widthPhase2(self, path):
@@ -190,7 +236,6 @@ class Topo:
 
         return curMinWidth
         
-
     def shortestPath(self, src, dst, greedyType, edges = None):
         # Construct state metric (weight) table for edges
         fStateMetric = {}   # {edge: fstate}
@@ -254,7 +299,6 @@ class Topo:
 
         return (sys.float_info.max, [])
         
-
     def hopsAway(self, src, dst, greedyType):
         # print('enter hopsAway')
         path = self.shortestPath(src, dst, greedyType)
@@ -298,7 +342,6 @@ class Topo:
         
         return acc * math.pow(self.q, s-1)
     
-
     def getEstablishedEntanglements(self, n1: Node, n2: Node):
         stack = []
         stack.append((None, n1)) #Pair[Link, Node]
@@ -371,7 +414,6 @@ class Topo:
 
         return result
 
-        
     def clearAllEntanglements(self):
         for link in self.links:
             link.clearEntanglement()
