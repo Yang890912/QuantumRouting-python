@@ -19,7 +19,8 @@ class Path:
     def __init__(self):
         self.nodes = []
         self.links = []
-        self.width = 0
+    def setStatus(self):
+        self.swapStatus = {node : False for node in self.nodes}
 
 class Request:
     def __init__(self, src, dst, index):
@@ -247,15 +248,16 @@ class REPS(AlgorithmBase):
                         next = Pi[SDpair][k][nodeIndex + 1]
                         self.fi[SDpair][(node, next)] += width
 
+                    
                     # request find a path
-                    pathForRequest = Path()
-                    pathForRequest.width = width
-                    for nodeIndex in range(pathLen):
-                        node = Pi[SDpair][k][nodeIndex]
-                        pathForRequest.nodes.append(node)
+                    for _ in range(width):
+                        pathForRequest = Path()
+                        for nodeIndex in range(pathLen):
+                            node = Pi[SDpair][k][nodeIndex]
+                            pathForRequest.nodes.append(node)
 
-                    request = self.SDpairToRequest[SDpair]
-                    request.paths.append(pathForRequest)
+                        request = self.SDpairToRequest[SDpair]
+                        request.paths.append(pathForRequest)
 
             paths = sorted(paths, key = self.widthForSort)
 
@@ -282,7 +284,6 @@ class REPS(AlgorithmBase):
 
                 # request find a path
                 pathForRequest = Path()
-                pathForRequest.width = 1
                 for nodeIndex in range(pathLen):
                     node = path[nodeIndex]
                     pathForRequest.nodes.append(node)
@@ -298,21 +299,17 @@ class REPS(AlgorithmBase):
 
             # a reqeust find paths
             request.needFindPath = False
-            width = request.width
-            for path in request:
+            for path in request.paths:
                 for nodeIndex in range(len(request.nodes) - 1):
                     node = request.nodes[nodeIndex]
                     next = request.nodes[nodeIndex + 1]
-                    request.links.append([])
                     targetLinks = self.findAllLinkContain(node, next)
                     for link in targetLinks:
                         if not self.isBind[link]:
-                            request.links[nodeIndex].append(link)
+                            path.links.append(link)
                             self.isBind[link] = True
-                            if len(request.links[nodeIndex]) == width:
-                                break
+                            break
         print('[REPS] PFT end')
-                    
 
     def findPathsForPFT(self, SDpair):
         src = SDpair[0]
