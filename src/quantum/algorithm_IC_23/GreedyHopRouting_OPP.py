@@ -58,7 +58,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         if succNumOfLinks < self.k:
             return path[0]  # Forward 0 hop
         
-        if self.k == 1 and succNumOfLinks == 1:
+        if self.k == 1:
             # if path[1].remainingQubits < 1:
             #     return path[0]  # Forward 0 hop
             # else:
@@ -76,17 +76,10 @@ class GreedyHopRouting_OPP(AlgorithmBase):
 
             if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
                 if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed 
-                    if self.k == 1 :    # satisfy k = 1
-                        if path[n].remainingQubits < 1: # has enough memory
-                            return path[0]  # Forward 0 hop
-                        else:
-                            path[n].remainingQubits -= 1
-                            return path[n]  # Forward n hop
-                    else:
-                        for link in links:
-                            if link.swapped():
-                                link.clearPhase4Swap() 
-                        return path[0]  # Forward 0 hop
+                    for link in links:
+                        if link.swapped():
+                            link.clearPhase4Swap() 
+                    return path[0]  # Forward 0 hop
                 else:                                               # Swap succeed 
                     if n+1 >= self.k or n == len(path)-2:   # satisfy k   
                         if path[n+1] == path[-1]:   # next terminal
@@ -404,7 +397,7 @@ if __name__ == '__main__':
     for link in topo.links:
         link.clearEntanglement()
 
-    # a4
+    # a2
     for i in range(ttime):
         a4.work(requests[i], i)
 
@@ -412,13 +405,13 @@ if __name__ == '__main__':
         if memory[node.id] != node.remainingQubits:
             print(node.id, memory[node.id]-node.remainingQubits)
 
-    # print('---')
+    print('---')
     # for link in topo.links:
     #     link.clearEntanglement()
     
-    # a3
+    # # a3
     # for i in range(ttime):
-    #     a3.work(requests[i], i)
+    #     a4.work(requests[i], i)
 
     # for node in topo.nodes:
     #     if memory[node.id] != node.remainingQubits:
