@@ -27,13 +27,15 @@ class FER_OPP(AlgorithmBase):
         self.bindLinks = {}
         self.state = {}
         self.reqToIntermediate = {}
+        self.reqBroken = {}
         self.linkLifetime = 30
         self.k = k
 
         self.totalTime = 0
         self.totalUsedQubits = 0
         self.totalNumOfReq = 0
-    
+        self.totalNumOfBrokenReq = 0
+
     def prepare(self):
         self.totalTime = 0
         self.requests.clear()
@@ -47,6 +49,7 @@ class FER_OPP(AlgorithmBase):
             self.requests.append((src, dst, self.timeSlot))
             self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
+            self.reqBroken[(src, dst, self.timeSlot)] = False
 
         if len(self.requests) > 0:
             self.result.numOfTimeslot += 1
@@ -110,7 +113,10 @@ class FER_OPP(AlgorithmBase):
                     intermediate.remainingQubits += 1 
 
                 if arrive == req[1]:
-                    finished.append(req) 
+                    finished.append(req)
+
+                if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
+                    self.reqBroken[req] = True 
 
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
@@ -122,6 +128,8 @@ class FER_OPP(AlgorithmBase):
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
                 self.totalTime += self.timeSlot - req[2]
+                if self.reqBroken[req]:
+                    self.totalNumOfBrokenReq += 1
                 self.requests.remove(req)
 
         # Delete used links and clear entanglement for finished SD-pairs 
@@ -370,7 +378,10 @@ class FER_OPP(AlgorithmBase):
                     intermediate.remainingQubits += 1 
 
                 if arrive == req[1]:
-                    finished.append(req) 
+                    finished.append(req)
+                
+                if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
+                    self.reqBroken[req] = True 
 
                 self.reqToIntermediate[req] = arrive
                 reqUpdated[req] = 1
@@ -387,6 +398,8 @@ class FER_OPP(AlgorithmBase):
             if req in self.requests:
                 print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
                 self.totalTime += self.timeSlot - req[2]
+                if self.reqBroken[req]:
+                    self.totalNumOfBrokenReq += 1
                 self.requests.remove(req)
 
         # Delete used links and clear entanglement for finished SD-pairs 
@@ -448,6 +461,7 @@ class FER_OPP(AlgorithmBase):
 
         print('[', self.name, '] Waiting Time:', self.result.waitingTime)
         print('[', self.name, '] Idle Time:', self.result.idleTime)
+        print('[', self.name, '] Broken Requests:', self.totalNumOfBrokenReq)
         print('[', self.name, '] P4 End')
 
         return self.result
