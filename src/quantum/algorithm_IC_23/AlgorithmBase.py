@@ -80,8 +80,8 @@ class AlgorithmBase:
 
     def work(self, pairs: list, time): 
 
-        self.timeSlot = time # 紀錄目前回合
-        self.srcDstPairs.extend(pairs) # 任務追加進去
+        self.timeSlot = time    # Update current time
+        self.srcDstPairs.extend(pairs) # Append new SDpairs
 
         if self.timeSlot == 0:
             self.prepare()
