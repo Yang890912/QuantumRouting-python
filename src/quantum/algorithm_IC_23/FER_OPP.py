@@ -18,7 +18,7 @@ class RecoveryPath:
 
 class FER_OPP(AlgorithmBase):
 
-    def __init__(self, topo, allowRecoveryPaths = False, k = 1):
+    def __init__(self, topo, allowRecoveryPaths=False, k=1):
         super().__init__(topo)
         self.name = "FER_OPP"
         self.majorPaths = []            # [PickedPath, ...]

@@ -18,7 +18,7 @@ class RecoveryPath:
 
 class OnlineAlgorithm_OPP(AlgorithmBase):
 
-    def __init__(self, topo, allowRecoveryPaths = False, k = 1):
+    def __init__(self, topo, allowRecoveryPaths = False, k=1):
         super().__init__(topo)
         self.name = "QCAST_OPP"
         self.majorPaths = []            # [PickedPath, ...]

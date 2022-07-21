@@ -12,7 +12,7 @@ from random import sample
 
 class GreedyHopRouting_OPP(AlgorithmBase):
 
-    def __init__(self, topo, k = 1):
+    def __init__(self, topo, k=1):
         super().__init__(topo)
         self.name = "Greedy_OPP"
         self.pathsSortedDynamically = []
