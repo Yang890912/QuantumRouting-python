@@ -88,17 +88,23 @@ class socialGenerator:
                     # print('[system] Construct social relationship: node 1 ->', n1.id, ', node 2 ->', n2.id)
 
     def genSocialNetwork(self, userNum, density):
+        community1 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 2, 2, 2, 2, 3, 2, 2, 2, 3, 2]  # 0.25
+        community2 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1]  # 0.50
+        community3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]  # 0.75
+        community4 = [0 for _ in range(20)]                                        # 1.00
+        community = {0.25 : community1, 0.50 : community2, 0.75 : community3, 1.00 : community4}
+
         self.topo.SN = {i: [] for i in range(userNum)}  # user to user
-        # community = self.topo.community[density]
+        community = community[density]
         for i in range(userNum):
             for j in range(i+1, userNum):
-                p = random.random()
-                if p <= density:
-                    self.topo.SN[i].append(j)
-                    self.topo.SN[j].append(i)
-                # if community[i] == community[j]:
+                # p = random.random()
+                # if p <= density:
                 #     self.topo.SN[i].append(j)
                 #     self.topo.SN[j].append(i)
+                if community[i] == community[j]:
+                    self.topo.SN[i].append(j)
+                    self.topo.SN[j].append(i)
 
 class Topo:
 
