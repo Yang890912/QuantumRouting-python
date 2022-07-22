@@ -277,6 +277,7 @@ class Topo:
 
         # Dijkstra 
         while len(q) != 0:
+            q = sorted(q, key=lambda q: q[0])
             contain = q.pop(0)
             w, prev = contain[1], contain[2]
             if w in prevFromSrc.keys():
@@ -301,7 +302,7 @@ class Topo:
                 if oldDist > newDist:
                     D[neighbor.id] = newDist
                     q.append((D[neighbor.id], neighbor, w))
-                    q = sorted(q, key=lambda q: q[0])
+                    
 
         return (sys.float_info.max, [])
         

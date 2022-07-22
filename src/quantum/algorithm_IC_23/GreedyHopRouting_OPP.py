@@ -166,7 +166,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 # Caculate width for p
                 width = self.topo.widthPhase2(p)
                 
-                if width == 0:
+                if width <= 0:
                     continue
 
                 found = True
