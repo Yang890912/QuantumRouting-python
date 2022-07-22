@@ -3,6 +3,7 @@ import sys
 import math
 import random
 import this
+from tkinter import E
 import gurobipy as gp
 from gurobipy import quicksum
 from queue import PriorityQueue
@@ -54,9 +55,8 @@ class REPS(AlgorithmBase):
     def printResult(self):
         self.result.waitingTime = self.totalWaitingTime / self.totalRequest
         self.result.usedQubits = self.totalUsedQubits / self.totalRequest
-        
         self.result.remainRequestPerRound.append(len(self.requests) / self.totalRequest)
-        
+        print("[REPS] len(srcDstPair) =", len(self.srcDstPairs))
         print("[REPS] total time:", self.result.waitingTime)
         print("[REPS] remain request:", len(self.requests))
         print("[REPS] current Timeslot:", self.timeSlot)
@@ -75,7 +75,6 @@ class REPS(AlgorithmBase):
                 if (src, dst) not in self.srcDstPairs:
                     self.SDpairToRequest[(src, dst)] = request
                     self.srcDstPairs.append((src, dst))
-        print([(src.id, dst.id) for (src, dst) in self.srcDstPairs])
 
     def p2(self):
         self.AddNewSDpairs()
@@ -102,6 +101,7 @@ class REPS(AlgorithmBase):
                 link.clearPhase4Swap()
 
     def forward(self):
+        finishedRequest = []
         for request in self.requests:
             if len(request.paths) == 0:
                 continue
@@ -111,10 +111,15 @@ class REPS(AlgorithmBase):
                 for nodeIndex in range(len(path.nodes)):
                     node = path.nodes[nodeIndex]
                     if path.swapStatus[node] == False:
-                        link1 = path.links[nodeIndex]
+                        link1 = path.links[nodeIndex - 1]
                         link2 = path.links[nodeIndex]
                         if link1.entangled and link2.entangled:
-                            path.swapStatus[node] = node.attemptSwapping(link1, link2)
+                            swapSuccess = path.swapStatus[node] = node.attemptSwapping(link1, link2)
+                            if swapSuccess == False:
+                                # swapping failed clear all link and swapStatus
+                                for Index in range(nodeIndex + 1):
+                                    path.links[Index].clearPhase4Swap()
+                                    path.swapStatus[path.nodes[Index]] = False
                         break
 
                 thisPathFinish = True
@@ -127,7 +132,14 @@ class REPS(AlgorithmBase):
                 
             if finish:
                 # the request is finished
-                self.requests.remove(request)
+                finishedRequest.append(request)
+
+        for request in finishedRequest:
+            for path in request.paths:
+                for link in path.links:
+                    self.isBind[link] = False
+                    link.clearEntanglement()
+            self.requests.remove(request)
 
     def LP1(self): # compute self.fi_LP
         print('[REPS] LP1 start')
@@ -174,7 +186,6 @@ class REPS(AlgorithmBase):
         for (u, v) in edgeIndices:
             dis = self.topo.distance(self.topo.nodes[u].loc, self.topo.nodes[v].loc)
             probability = math.exp(-self.topo.alpha * dis)
-            print(probability)
             m.addConstr(quicksum(f[i, u, v] + f[i, v, u] for i in range(numOfSDpairs)) <= probability * x[u, v])
 
             capacity = self.edgeCapacity(self.topo.nodes[u], self.topo.nodes[v])
@@ -329,14 +340,24 @@ class REPS(AlgorithmBase):
 
         for SDpair in self.srcDstPairs:
             request = self.SDpairToRequest[SDpair]
-            if len(request.paths) == 0:
-                # request didn't find a path
-                continue
+            removePaths = []
 
-            # a reqeust find paths
-            request.needFindPath = False
             for path in request.paths:
+                # check there is resource for this path
+                hasResource = True
+                if path.nodes[0].remainingQubits < 1 or path.nodes[-1].remainingQubits < 1:
+                    hasResource = False
+
+                for nodeIndex in range(1, len(path.nodes) - 1):
+                    if path.nodes[nodeIndex].remainingQubits < 2:
+                        hasResource = False
+                
+                if not hasResource:
+                    removePaths.append(path)
+                    continue
+
                 path.setStatus()
+                request.needFindPath = False
                 for nodeIndex in range(len(path.nodes) - 1):
                     node = path.nodes[nodeIndex]
                     next = path.nodes[nodeIndex + 1]
@@ -347,6 +368,10 @@ class REPS(AlgorithmBase):
                             link.assignQubits()
                             self.isBind[link] = True
                             break
+        
+            for path in removePaths:
+                request.paths.remove(path)
+
         print('[REPS] PFT end')
 
     def findPathsForPFT(self, SDpair):
@@ -422,17 +447,16 @@ if __name__ == '__main__':
     topo = Topo.generate(100, 0.9, 5, 0.0002, 6)
     s = REPS(topo)
     result = AlgorithmResult()
-    samplesPerTime = 2
-    ttime = 100
-    rtime = 2
+    SDpairPerTime = 2
+    ttime = 200
+    rtime = 20
     requests = {i : [] for i in range(ttime)}
 
-    for i in range(ttime):
-        if i < rtime:
-            a = sample(topo.nodes, samplesPerTime)
-            for n in range(0, samplesPerTime, 2):
-                requests[i].append((a[n], a[n+1]))
-
+    for i in range(rtime):
+        a = sample(topo.nodes, SDpairPerTime * 2)
+        for n in range(0, SDpairPerTime * 2, 2):
+            requests[i].append((a[n], a[n+1]))
+    
     for i in range(ttime):
         result = s.work(requests[i], i)
     
