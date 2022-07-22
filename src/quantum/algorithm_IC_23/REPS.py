@@ -71,10 +71,11 @@ class REPS(AlgorithmBase):
         for request in self.requests:
             if request.needFindPath:
                 src = request.src
-                dst = request.src
-                if (src, dst) not in self.usedSDpair:
+                dst = request.dst
+                if (src, dst) not in self.srcDstPairs:
                     self.SDpairToRequest[(src, dst)] = request
                     self.srcDstPairs.append((src, dst))
+        print([(src.id, dst.id) for (src, dst) in self.srcDstPairs])
 
     def p2(self):
         self.AddNewSDpairs()
@@ -94,10 +95,10 @@ class REPS(AlgorithmBase):
         return self.result
 
     def checkLinkTimeout(self):
-        for link in self.top.links:
-            if link.entangle:
+        for link in self.topo.links:
+            if link.entangled:
                 link.lifetime += 1
-            if link.lifetime > self.inkLifetime:
+            if link.lifetime > self.linkLifetime:
                 link.clearPhase4Swap()
 
     def forward(self):
@@ -112,12 +113,12 @@ class REPS(AlgorithmBase):
                     if path.swapStatus[node] == False:
                         link1 = path.links[nodeIndex]
                         link2 = path.links[nodeIndex]
-                        if link1.entangle and link2.entangle:
-                            path.swapStatus[node] = node.attempSwap(link1, link2)
+                        if link1.entangled and link2.entangled:
+                            path.swapStatus[node] = node.attemptSwapping(link1, link2)
                         break
 
                 thisPathFinish = True
-                for node in range(len(path.nodes)):
+                for node in path.nodes:
                     if path.swapStatus[node] == False:
                         thisPathFinish = False
 
@@ -173,6 +174,7 @@ class REPS(AlgorithmBase):
         for (u, v) in edgeIndices:
             dis = self.topo.distance(self.topo.nodes[u].loc, self.topo.nodes[v].loc)
             probability = math.exp(-self.topo.alpha * dis)
+            print(probability)
             m.addConstr(quicksum(f[i, u, v] + f[i, v, u] for i in range(numOfSDpairs)) <= probability * x[u, v])
 
             capacity = self.edgeCapacity(self.topo.nodes[u], self.topo.nodes[v])
@@ -190,7 +192,7 @@ class REPS(AlgorithmBase):
                 if u in (n1, n2):
                     edgeContainu.append((n1, n2))
                     edgeContainu.append((n2, n1))
-            m.addConstr(quicksum(x[n1, n2] for (n1, n2) in edgeContainu) <= self.topo.nodes[u].remainingQubits)
+            m.addConstr(quicksum(x[n1, n2] for (n1, n2) in edgeContainu) <= max(0, self.topo.nodes[u].remainingQubits))
 
         m.optimize()
 
@@ -221,12 +223,13 @@ class REPS(AlgorithmBase):
     def edgeCapacity(self, u, v):
         capacity = 0
         for link in u.links:
-            if link.contains(v) and not self.isBind[link]:
+            if link.contains(v) and self.isBind[link] == False:
                 capacity += 1
         used = 0
         for SDpair in self.srcDstPairs:
             used += self.fi[SDpair][(u, v)]
             used += self.fi[SDpair][(v, u)]
+
         return capacity - used
 
     def widthForSort(self, path):
@@ -234,10 +237,10 @@ class REPS(AlgorithmBase):
         return -path[-1]
     
 
-    def findAllLinkContain(self, u: Node, v: Node):
+    def findAllLinkContains(self, u: Node, v: Node):
         links = []
         for link in u.links:
-            if link.contain(v):
+            if link.contains(v):
                 links.append(link)
 
         return links
@@ -334,10 +337,10 @@ class REPS(AlgorithmBase):
             request.needFindPath = False
             for path in request.paths:
                 path.setStatus()
-                for nodeIndex in range(len(request.nodes) - 1):
-                    node = request.nodes[nodeIndex]
-                    next = request.nodes[nodeIndex + 1]
-                    targetLinks = self.findAllLinkContain(node, next)
+                for nodeIndex in range(len(path.nodes) - 1):
+                    node = path.nodes[nodeIndex]
+                    next = path.nodes[nodeIndex + 1]
+                    targetLinks = self.findAllLinkContains(node, next)
                     for link in targetLinks:
                         if not self.isBind[link]:
                             path.links.append(link)
@@ -413,6 +416,7 @@ class REPS(AlgorithmBase):
             currentNode = path[i]
             nextNode = path[i + 1]
             width = min(width, self.fi_LP[SDpair][(currentNode, nextNode)])
+        return width
 if __name__ == '__main__':
     
     topo = Topo.generate(100, 0.9, 5, 0.0002, 6)
@@ -426,7 +430,7 @@ if __name__ == '__main__':
     for i in range(ttime):
         if i < rtime:
             a = sample(topo.nodes, samplesPerTime)
-            for n in range(0,samplesPerTime,2):
+            for n in range(0, samplesPerTime, 2):
                 requests[i].append((a[n], a[n+1]))
 
     for i in range(ttime):
