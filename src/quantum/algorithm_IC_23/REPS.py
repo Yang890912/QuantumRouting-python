@@ -1,6 +1,8 @@
+from re import finditer
 import sys
 import math
 import random
+import this
 import gurobipy as gp
 from gurobipy import quicksum
 from queue import PriorityQueue
@@ -21,7 +23,9 @@ class Path:
         self.links = []
     def setStatus(self):
         self.swapStatus = {node : False for node in self.nodes}
-
+        self.swapStatus[self.nodes[0]] = True
+        self.swapStatus[self.nodes[-1]] = True
+    
 class Request:
     def __init__(self, src, dst, index):
         self.src = src
@@ -40,6 +44,7 @@ class REPS(AlgorithmBase):
         self.totalRequest = 0
         self.totalUsedQubits = 0
         self.totalWaitingTime = 0
+        self.linkLifetime = 30
 
     def genNameByComma(self, varName, parName):
         return (varName + str(parName)).replace(' ', '')
@@ -73,12 +78,12 @@ class REPS(AlgorithmBase):
 
     def p2(self):
         self.AddNewSDpairs()
+        self.checkLinkTimeout()
         self.totalWaitingTime += len(self.requests)
         self.result.idleTime += len(self.requests)
         if len(self.srcDstPairs) > 0:
             self.PFT() # find path for request
         if len(self.requests) > 0:
-            self.assignQubitsForBindLinks()
             self.result.numOfTimeslot += 1
         print('[REPS] p2 end')
     
@@ -88,12 +93,40 @@ class REPS(AlgorithmBase):
         self.printResult()
         return self.result
 
-    
-    def assignQubitsForBindLinks(self):
-        pass
+    def checkLinkTimeout(self):
+        for link in self.top.links:
+            if link.entangle:
+                link.lifetime += 1
+            if link.lifetime > self.inkLifetime:
+                link.clearPhase4Swap()
 
     def forward(self):
-        pass
+        for request in self.requests:
+            if len(request.paths) == 0:
+                continue
+
+            finish = False
+            for path in request.paths:
+                for nodeIndex in range(len(path.nodes)):
+                    node = path.nodes[nodeIndex]
+                    if path.swapStatus[node] == False:
+                        link1 = path.links[nodeIndex]
+                        link2 = path.links[nodeIndex]
+                        if link1.entangle and link2.entangle:
+                            path.swapStatus[node] = node.attempSwap(link1, link2)
+                        break
+
+                thisPathFinish = True
+                for node in range(len(path.nodes)):
+                    if path.swapStatus[node] == False:
+                        thisPathFinish = False
+
+                if thisPathFinish:
+                    finish = True
+                
+            if finish:
+                # the request is finished
+                self.requests.remove(request)
 
     def LP1(self): # compute self.fi_LP
         print('[REPS] LP1 start')
@@ -300,6 +333,7 @@ class REPS(AlgorithmBase):
             # a reqeust find paths
             request.needFindPath = False
             for path in request.paths:
+                path.setStatus()
                 for nodeIndex in range(len(request.nodes) - 1):
                     node = request.nodes[nodeIndex]
                     next = request.nodes[nodeIndex + 1]
@@ -307,6 +341,7 @@ class REPS(AlgorithmBase):
                     for link in targetLinks:
                         if not self.isBind[link]:
                             path.links.append(link)
+                            link.assignQubits()
                             self.isBind[link] = True
                             break
         print('[REPS] PFT end')
