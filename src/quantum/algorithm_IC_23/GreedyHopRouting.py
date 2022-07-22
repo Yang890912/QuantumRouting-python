@@ -46,7 +46,7 @@ class GreedyHopRouting(AlgorithmBase):
             prevLink = links[n-1]
             nextLink = links[n]
 
-            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not prevLink.swappedAt(path[n]):
+            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not nextLink.swappedAt(path[n]):
                 if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
                     for link in links:
                         if link.swapped():
@@ -57,7 +57,7 @@ class GreedyHopRouting(AlgorithmBase):
                         return path[-1]
                     else:   
                         return path[0]  # Forward 0 hop
-            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and prevLink.swappedAt(path[n]):
+            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):
                 continue
 
     def p2(self):
