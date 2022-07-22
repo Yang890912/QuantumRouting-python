@@ -230,7 +230,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 if arrive == req[1]:
                     finished.append(req) 
 
-                if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
+                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]:
                     self.reqBroken[req] = True
 
                 self.req2Intermediate[req] = arrive
@@ -301,7 +301,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 if arrive == req[1]:
                     finished.append(req)
 
-                if arrive not in self.topo.socialRelationship[intermediate] and arrive != req[1]:
+                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]:
                     self.reqBroken[req] = True
 
                 self.req2Intermediate[req] = arrive

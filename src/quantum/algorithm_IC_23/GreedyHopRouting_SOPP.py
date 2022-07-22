@@ -13,7 +13,7 @@ from random import sample
 
 class GreedyHopRouting_SOPP(AlgorithmBase):
 
-    def __init__(self, topo, k=1, ks=2):
+    def __init__(self, topo, ks=2):
         super().__init__(topo)
         self.name = "Greedy_SOPP"
         self.pathsSortedDynamically = []
@@ -25,7 +25,6 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
         self.req2Path = {}
         self.reqBroken = {}
         self.linkLifetime = 30
-        self.k = k
         self.ks = ks
         self.l = 2
         self.r = 1
