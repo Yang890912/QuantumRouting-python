@@ -75,7 +75,7 @@ class socialGenerator:
 
 class Topo:
 
-    def __init__(self, G, q, k, a, degree, density=0.5, L=10):
+    def __init__(self, G, q, k, a, degree, density=0.5, L=30):
         _nodes, _edges, _positions = G.nodes(), list(G.edges()), nx.get_node_attributes(G, 'pos')
         self.nodes = []
         self.links = []

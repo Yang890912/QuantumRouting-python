@@ -87,6 +87,104 @@ class OnlineAlgorithm_SOPP(AlgorithmBase):
             self.P2Extra()
             print('[', self.name, '] P2Extra End')
         
+        reqUpdated = {req: 0 for req in self.req2Intermediate}
+        finished = []
+
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+            intermediate = self.req2Intermediate[req]
+            intermediates = self.path2Intermediates[path]
+            self.state[req] = 1 
+
+            if req in finished:
+                continue
+
+            # for w-width major path, treat it as w different paths, and repair separately
+            for w in range(0, width):
+                if intermediate not in path or intermediate == req[1] or reqUpdated[req] == 1:
+                    continue 
+
+                links = self.bindLinks[req][path][w]
+                _p = path[path.index(intermediate):len(path)]
+                _links = links[path.index(intermediate):len(path)-1]
+                arrive = self.swapped2(_p, _links, intermediate, intermediates)
+
+                if intermediate == arrive:
+                    continue
+
+                # if intermediate != req[0]:  
+                #     intermediate.remainingQubits += 1 
+
+                if arrive == req[1]:
+                    finished.append(req)
+
+                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]:
+                    self.reqBroken[req] = True  
+
+                self.req2Intermediate[req] = arrive
+                reqUpdated[req] = 1
+                self.req2Path[req] = path
+            # for w end
+        # for pathWithWidth end
+
+        popPickedPath = []
+
+        # Release unused paths' resorces
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+
+            if req in self.req2Path:
+                if path != self.req2Path[req]:
+                    popPickedPath.append(pathWithWidth)
+
+                    if path in self.bindLinks[req]:
+                        for w in range(0, width): 
+                            for link in self.bindLinks[req][path][w]:
+                                link.clearEntanglement()
+
+                        self.bindLinks[req].pop(path) 
+
+        for pathWithWidth in popPickedPath:
+            self.majorPaths.remove(pathWithWidth)
+
+        removedPickedPath = []
+
+        # Calculate the finished number of requests and delete 
+        for req in finished:
+            if req in self.requests:
+                print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
+                self.totalTime += self.timeSlot - req[2]
+                if self.reqBroken[req]:
+                    self.totalNumOfBrokenReq += 1
+                self.requests.remove(req)
+
+        # Delete used links and clear entanglement for finished SD-pairs 
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+
+            if req in finished: 
+                if path in self.bindLinks[req]:
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    removedPickedPath.append(pathWithWidth)
+
+        for req in finished: 
+            if req in self.bindLinks:          
+                self.bindLinks.pop(req)
+
+        for pathWithWidth in removedPickedPath:
+            self.majorPaths.remove(pathWithWidth)
+        
         print('[', self.name, '] P2 End')
 
     # Calculate the candidate path for each requests 

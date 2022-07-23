@@ -191,6 +191,87 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
 
         self.pathsSortedDynamically = sorted(self.pathsSortedDynamically, key=lambda x: x[1])
 
+        reqUpdated = {req: 0 for req in self.req2Intermediate}
+        finished = []
+
+        print('[', self.name, '] Swapped')
+        # Swapped 
+        for path in self.pathsSortedDynamically:
+            (_, width, p, time, req) = path
+            self.state[req] = 1 
+            intermediate = self.req2Intermediate[req]
+            intermediates = self.path2Intermediates[path]
+
+            if req in finished:
+                continue
+            
+            for w in range(0, width): 
+                if intermediate not in p or intermediate == req[1] or reqUpdated[req] == 1:
+                    continue
+                              
+                # swapped
+                links = self.bindLinks[req][path][w]
+                _p = p[p.index(intermediate):len(p)]
+                _links = links[p.index(intermediate):len(p)-1]
+                arrive = self.swapped2(_p, _links, intermediate, intermediates)
+
+                if intermediate == arrive:
+                    continue
+                
+                # print('[', self.name, '] Path:', [x.id for x in p])
+                # print('[', self.name, '] Links:', [x.id for x in links])
+                # print('arrive:', arrive.id)
+                # print('[', self.name, '] Path2:', [x.id for x in _p])
+                # print('[', self.name, '] Links2:', [x.id for x in _links])
+                
+                if arrive == req[1]:
+                    finished.append(req) 
+
+                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]:
+                    self.reqBroken[req] = True
+
+                self.req2Intermediate[req] = arrive
+                reqUpdated[req] = 1
+                self.req2Path[req] = path
+        
+        # Release unused paths' resorces
+        for req in self.req2Path:
+            popPath = []
+            for path in self.bindLinks[req]:
+                if path != self.req2Path[req]:
+                    (_, width, p, time, req) = path
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    self.pathsSortedDynamically.remove(path)
+                    popPath.append(path)
+
+            for path in popPath:
+                if path in self.bindLinks[req]:
+                   self.bindLinks[req].pop(path) 
+
+
+        # Delete the finished request
+        for req in finished:
+            if req in self.requests:
+                print('[', self.name, '] Finished Requests:', req[0].id, req[1].id, req[2])
+                self.totalTime += self.timeSlot - req[2]
+                if self.reqBroken[req]:
+                    self.totalNumOfBrokenReq += 1
+                self.requests.remove(req)
+                self.req2Path.pop(req)
+
+            # Delete used links and clear entanglement for finished SD-pairs 
+            if req in self.bindLinks:
+                for path in self.bindLinks[req]:
+                    (_, width, p, time, req) = path
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    self.pathsSortedDynamically.remove(path)
+                self.bindLinks.pop(req)
+                self.req2Intermediate.pop(req)
+                
         print('[', self.name, '] P2 End')
     
     def p4(self):
