@@ -1,4 +1,5 @@
 from re import finditer
+from sre_constants import SUCCESS
 import sys
 import math
 import random
@@ -22,20 +23,22 @@ class Path:
     def __init__(self):
         self.nodes = []
         self.links = []
+        self.tempNodeIndex = 0
+        self.index = 0
     def setStatus(self):
         self.swapStatus = {node : False for node in self.nodes}
         self.swapStatus[self.nodes[0]] = True
         self.swapStatus[self.nodes[-1]] = True
-    
+        self.swapStatus[self.nodes[self.tempNodeIndex]] = True
+
 class Request:
     def __init__(self, src, dst, index):
         self.src = src
         self.dst = dst
         self.index = index
         self.needFindPath = True
-        self.currentTemp = (-1, -1) # [pathsIndex, nodesIndex]
+        self.tempPathIndex = -1 # [pathsIndex, nodesIndex]
         self.paths = []
-        self.k = 1
 
 class REPS(AlgorithmBase):
     def __init__(self, topo):
@@ -94,20 +97,48 @@ class REPS(AlgorithmBase):
         return self.result
 
     def checkLinkTimeout(self):
-        for link in self.topo.links:
-            if link.entangled:
-                link.lifetime += 1
-            if link.lifetime > self.topo.L:
-                link.clearPhase4Swap()
+        for request in self.requests:
+            for path in request.paths:
+                for linkIndex in range(len(path.links)):
+                    link = path.links[linkIndex]
+                    if link.entangled:
+                        link.lifetime += 1
+                    if link.lifetime > self.topo.L:
+                        # timeout
+                        if path.swapStatus[link.n1] or path.swapStatus[link.n2]:
+                            # swapped
+                            for nodeIndex in range(len(path.nodes)):
+                                node = path.nodes[nodeIndex]
+                                nextLink = path.links[nodeIndex]
+                                if path.swapStatus[node]:
+                                    nextLink.clearPhase4Swap()
+                                else:
+                                    break
+                            path.setStatus()
+                        else:
+                            link.clearPhase4Swap()
+    
+    def checkTempTimeout(self):
+        pass
 
     def forward(self):
         finishedRequest = []
         for request in self.requests:
             if len(request.paths) == 0:
                 continue
-
+            
             finish = False
-            for path in request.paths:
+
+            currentPath = []
+            PathIndex = self.tempPath
+            if PathIndex == -1:
+                # no temp
+                currentPath = request.paths
+            else:
+                # current, request is in temp node, only one path can forward
+                currentPath.append(request.paths[PathIndex])
+
+            for path in currentPath:
                 for nodeIndex in range(len(path.nodes)):
                     node = path.nodes[nodeIndex]
                     if path.swapStatus[node] == False:
@@ -117,7 +148,7 @@ class REPS(AlgorithmBase):
                             swapSuccess = path.swapStatus[node] = node.attemptSwapping(link1, link2)
                             if swapSuccess == False:
                                 # swapping failed clear all link and swapStatus
-                                for Index in range(nodeIndex + 1):
+                                for Index in range(path.tempNodeIndex, nodeIndex + 1):
                                     path.links[Index].clearPhase4Swap()
 
                                 path.setStatus()
@@ -130,10 +161,35 @@ class REPS(AlgorithmBase):
 
                 if thisPathFinish:
                     finish = True
-                
+
             if finish:
                 # the request is finished
                 finishedRequest.append(request)
+                continue
+        
+            for path in currentPath:
+                successForward = False
+                if self.k == 1:
+                    if path.links[path.tempNodeIndex].entangled:
+                        path.tempNodeIndex += 1
+                        path.setStatus()
+                        successForward = True
+                else:
+                    forwardStep = 1
+                    for nodeIndex in range(path.tempNodeIndex, len(path.nodes)):
+                        node = path.nodes[nodeIndex]
+                        if path.swapStatus[node]:
+                            forwardStep += 1
+                        else:
+                            break
+                        
+                    if forwardStep >= self.k:
+                        path.tempNodeIndex += forwardStep
+                        path.setStatus()
+                        successForward = True
+
+                if successForward:
+                    self.tempPath = path.index
 
         for request in finishedRequest:
             for path in request.paths:
@@ -343,7 +399,8 @@ class REPS(AlgorithmBase):
             request = self.SDpairToRequest[SDpair]
             removePaths = []
 
-            for path in request.paths:
+            for pathIndex in range(len(request.paths)):
+                path = request.paths[pathIndex]
                 # check there is resource for this path
                 hasResource = True
                 if path.nodes[0].remainingQubits < 1 or path.nodes[-1].remainingQubits < 1:
@@ -358,6 +415,7 @@ class REPS(AlgorithmBase):
                     continue
 
                 path.setStatus()
+                path.index = pathIndex
                 request.needFindPath = False
                 for nodeIndex in range(len(path.nodes) - 1):
                     node = path.nodes[nodeIndex]
