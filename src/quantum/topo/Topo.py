@@ -83,12 +83,13 @@ class Topo:
         self.q = q
         self.alpha = a
         self.k = k
-        self.sentinel = Node(-1, (-1.0, -1.0), -1, self)
-        self.socialRelationship = {}   
-        self.SN = {}
-        self.density = density
         self.L = L
-        self.shortestPathTable = {}
+        self.density = density
+        self.sentinel = Node(-1, (-1.0, -1.0), -1, self)
+
+        self.socialRelationship = {}
+        self.shortestPathTable = {}   
+        self.SN = {}
 
         # for pos in _positions:
         #     print(_positions[pos])
@@ -427,3 +428,13 @@ class Topo:
         self.q = q
         self.updateLinks()
         self.updateNodes()
+
+    def setL(self, L):
+        self.L = L
+        self.genShortestPathTable('New')
+    
+    def setDensity(self, density):
+        self.density = density
+        generator = socialGenerator()
+        generator.setTopo(self)
+        generator.genSocialRelationship()

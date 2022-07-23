@@ -21,7 +21,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         self.state = {}
         self.req2Intermediate = {}
         self.reqBroken = {}
-        self.linkLifetime = 30
+        self.reqAndIntermediate2Time = {}
         self.k = k
 
         self.totalTime = 0
@@ -217,13 +217,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
 
                 if intermediate == arrive:
                     continue
-
-                # print('[', self.name, '] Path:', [x.id for x in p])
-                # print('[', self.name, '] Links:', [x.id for x in links])
-                # print('arrive:', arrive.id)
-                # print('[', self.name, '] Path2:', [x.id for x in _p])
-                # print('[', self.name, '] Links2:', [x.id for x in _links])
-                
+              
                 if intermediate != req[0]: 
                     intermediate.remainingQubits += 1 
 
@@ -289,12 +283,6 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 if intermediate == arrive:
                     continue
 
-                # print('[', self.name, '] Path:', [x.id for x in p])
-                # print('[', self.name, '] Links:', [x.id for x in links])
-                # print('arrive:', arrive.id)
-                # print('[', self.name, '] Path2:', [x.id for x in _p])
-                # print('[', self.name, '] Links2:', [x.id for x in _links])
-
                 if intermediate != req[0]:  
                     intermediate.remainingQubits += 1 
 
@@ -336,7 +324,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
-                        if link.lifetime > self.linkLifetime:
+                        if link.lifetime > self.topo.L:
                             if link.swapped():
                                 for link2 in links:
                                     if link2.swapped():
@@ -377,7 +365,7 @@ if __name__ == '__main__':
 
     topo = Topo.generate(100, 0.9, 5, 0.001, 6)
     # f = open('logfile.txt', 'w')
-    
+
     a1 = GreedyHopRouting_OPP(topo, 1)
     a2 = GreedyHopRouting_OPP(topo, 2)
     # a3 = GreedyHopRouting(topo)
@@ -420,8 +408,8 @@ if __name__ == '__main__':
             print(node.id, memory[node.id]-node.remainingQubits)
 
     print('---')
-    # for link in topo.links:
-    #     link.clearEntanglement()
+    for link in topo.links:
+        link.clearEntanglement()
     
     # # a3
     # for i in range(ttime):

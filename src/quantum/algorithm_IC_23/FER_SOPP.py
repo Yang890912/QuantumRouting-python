@@ -30,8 +30,6 @@ class FER_SOPP(AlgorithmBase):
         self.path2Intermediates = {}
         self.req2Path = {}
         self.reqBroken = {}
-        self.linkLifetime = 30
-        self.memLifetime = 30
         self.ks = ks
 
         self.totalTime = 0
@@ -475,7 +473,7 @@ class FER_SOPP(AlgorithmBase):
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
-                        if link.lifetime > self.linkLifetime:
+                        if link.lifetime > self.topo.L:
                             if link.swapped():
                                 for link2 in links:
                                     if link2.swapped():
@@ -522,7 +520,7 @@ if __name__ == '__main__':
     # a3 = FER(topo)
     # a4 = OnlineAlgorithm(topo)
  
-    samplesPerTime = 10
+    samplesPerTime = 6
     ttime = 100
     rtime = 5
     requests = {i : [] for i in range(ttime)}

@@ -24,7 +24,6 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
         self.path2Intermediates = {}
         self.req2Path = {}
         self.reqBroken = {}
-        self.linkLifetime = 30
         self.ks = ks
         self.l = 2
         self.r = 1
@@ -271,7 +270,7 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
                     self.pathsSortedDynamically.remove(path)
                 self.bindLinks.pop(req)
                 self.req2Intermediate.pop(req)
-                
+
         print('[', self.name, '] P2 End')
     
     def p4(self):
@@ -365,7 +364,7 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
-                        if link.lifetime > self.linkLifetime:
+                        if link.lifetime > self.topo.L:
                             if link.swapped():
                                 for link2 in links:
                                     if link2.swapped():

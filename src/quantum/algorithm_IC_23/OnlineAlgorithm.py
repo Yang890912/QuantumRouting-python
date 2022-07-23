@@ -28,7 +28,6 @@ class OnlineAlgorithm(AlgorithmBase):
         self.requests = []
         self.bindLinks = {}
         self.state = {}
-        self.linkLifetime = 30
 
         self.totalTime = 0
         self.totalUsedQubits = 0
@@ -496,7 +495,7 @@ class OnlineAlgorithm(AlgorithmBase):
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
-                        if link.lifetime > self.linkLifetime:
+                        if link.lifetime > self.topo.L:
                             if link.swapped():
                                 for link2 in links:
                                     if link2.swapped():

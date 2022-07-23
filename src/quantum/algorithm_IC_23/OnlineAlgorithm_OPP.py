@@ -30,7 +30,6 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
         self.state = {}
         self.req2Intermediate = {}
         self.reqBroken = {}
-        self.linkLifetime = 30
         self.k = k
 
         self.totalTime = 0
@@ -456,7 +455,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
-                        if link.lifetime > self.linkLifetime:
+                        if link.lifetime > self.topo.L:
                             if link.swapped():
                                 for link2 in links:
                                     if link2.swapped():
