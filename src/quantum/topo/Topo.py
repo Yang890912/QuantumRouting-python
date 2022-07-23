@@ -7,41 +7,8 @@ from tkinter.tix import AUTO
 import networkx as nx
 from .Node import Node
 from .Link import Link
-from dataclasses import dataclass
 from random import sample
 
-@dataclass
-class Edge(Node):
-
-    def __init__(self, n1: Node, n2: Node):
-        self.n1 = n1
-        self.n2 = n2
-        self.p_first = []
-        self.p_second = []
-
-        p = [self.p_first, self.p_second]
-
-    def toList(self):
-        List = [self.n1, self.n2]
-        return List
-
-    def otherthan(self, n: Node):
-        if n == self.n1:
-            return self.n2
-        elif n == self.n2:
-            return self.n1
-        else:
-            print('Neither\n')
-
-    def contains(self, n: Node):
-        if self.n1 in n or self.n2 in n:
-            return True
-
-    def hashCode(self):
-        return self.n1.id ^ self.n2.id
-
-    def equals(self, other):
-        return other is Edge and (other.n1 == self.n1 and other.n2 == self.n2 or other.n1 == self.n2 and other.n2 == self.n1)
 
 class TopoConnectionChecker:
     def setTopo(self, topo):
@@ -108,7 +75,7 @@ class socialGenerator:
 
 class Topo:
 
-    def __init__(self, G, q, k, a, degree, density = 0.5):
+    def __init__(self, G, q, k, a, degree, density=0.5, L=10):
         _nodes, _edges, _positions = G.nodes(), list(G.edges()), nx.get_node_attributes(G, 'pos')
         self.nodes = []
         self.links = []
@@ -120,6 +87,8 @@ class Topo:
         self.socialRelationship = {}   
         self.SN = {}
         self.density = density
+        self.L = L
+        self.shortestPathTable = {}
 
         # for pos in _positions:
         #     print(_positions[pos])
@@ -188,11 +157,13 @@ class Topo:
                 self.nodes[_edge[0]].links.append(link)
                 self.nodes[_edge[1]].links.append(link)
                 linkId += 1
-
-        # print p and width for test
-        # p = self.shortestPath(self.nodes[3], self.nodes[99], 'Hop')[1]
-        # print('Hop path:', [x.id for x in p])
-        # print('width:', self.widthPhase2(p))
+        
+        # establish Path table
+        self.genShortestPathTable('New')
+        # self.genShortestPathTable('Hop')
+   
+    def weight(self, p):
+        return -1 * math.log(self.L*p / (self.L*p - p + 1)) 
 
     def distance(self, pos1: tuple, pos2: tuple): # para1 type: tuple, para2 type: tuple
         d = 0
@@ -242,14 +213,16 @@ class Topo:
 
         return curMinWidth
         
-    def shortestPath(self, src, dst, greedyType, edges = None):
+    def shortestPath(self, src, dst, Type, edges = None):
         # Construct state metric (weight) table for edges
         fStateMetric = {}   # {edge: fstate}
         fStateMetric.clear()
         if edges != None:
             fStateMetric = {edge : self.distance(edge[0].loc, edge[1].loc) for edge in edges} 
-        elif greedyType == 'Hop' and edges == None: # hop
+        elif Type == 'Hop' and edges == None: # hop
             fStateMetric = {edge : 1 for edge in self.edges}
+        elif Type == "New" and edges == None: # new
+            fStateMetric = {edge : self.weight(math.exp(-self.alpha * self.distance(edge[0].loc, edge[1].loc))) for edge in self.edges}
         else:   # distance
             fStateMetric = {edge : self.distance(edge[0].loc, edge[1].loc) for edge in self.edges}
 
@@ -306,10 +279,20 @@ class Topo:
 
         return (sys.float_info.max, [])
         
-    def hopsAway(self, src, dst, greedyType):
+    def hopsAway(self, src, dst, Type):
         # print('enter hopsAway')
-        path = self.shortestPath(src, dst, greedyType)
+        path = self.shortestPath(src, dst, Type)
         return len(path[1]) - 1
+
+    def genShortestPathTable(self, Type):
+        print('Generate Path table, Type:', Type)
+        for n1 in self.nodes:
+            for n2 in self.nodes:
+                if n1 != n2:           
+                    self.shortestPathTable[(n1, n2)] = self.shortestPath(n1, n2, Type)
+                    # print([x.id for x in self.shortestPathTable[(n1, n2)][1]])
+                    if len(self.shortestPathTable[(n1, n2)][1]) == 0:
+                        quit()
 
     def e(self, path: list, width: int, oldP: list):
         s = len(path) - 1
