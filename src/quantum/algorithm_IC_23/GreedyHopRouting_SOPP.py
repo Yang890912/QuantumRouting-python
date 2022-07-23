@@ -194,12 +194,11 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
         print('[', self.name, '] P2 End')
     
     def p4(self):
-
         reqUpdated = {req: 0 for req in self.req2Intermediate}
         finished = []
 
-        print('[', self.name, '] Swapped 2')
-        # Swapped 2
+        print('[', self.name, '] Swapped')
+        # Swapped 
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
             self.state[req] = 1 
@@ -276,11 +275,6 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
                 self.bindLinks.pop(req)
                 self.req2Intermediate.pop(req)
         
-        # Calculate the idle time for all requests
-        for req in self.requests:
-            if self.state[req] == 0:
-                self.result.idleTime += 1
-
         # Update links' lifetime       
         for path in self.pathsSortedDynamically:
             (_, width, p, time, req) = path
@@ -302,6 +296,11 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
         #                       #                
         #   RECORD EXPERIMENT   #
         #                       #
+
+        # Calculate the idle time for all requests
+        for req in self.requests:
+            if self.state[req] == 0:
+                self.result.idleTime += 1
 
         # Calculate the remaining time for unfinished SD-pairs
         remainTime = 0
