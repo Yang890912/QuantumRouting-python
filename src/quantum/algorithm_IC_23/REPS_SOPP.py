@@ -30,6 +30,7 @@ class Path:
         self.swapStatus[self.nodes[0]] = True
         self.swapStatus[self.nodes[-1]] = True
         self.swapStatus[self.nodes[self.tempNodeIndex]] = True
+            
 
 class Request:
     def __init__(self, src, dst, index):
@@ -127,8 +128,7 @@ class REPS(AlgorithmBase):
                 request.currentTempRound += 1
             if request.currentTempRound > self.topo.L:
                 # temp time out
-                request.currentTempRound = 0
-                request.tempPath = -1
+                request = Request(request.src, request.dst, request.index)
         pass
 
     def swapAndForward(self):
@@ -147,22 +147,37 @@ class REPS(AlgorithmBase):
             else:
                 # current, request is in temp node, only one path can forward
                 currentPath.append(request.paths[PathIndex])
-
+            
+            swapped = False
             for path in currentPath:
                 for nodeIndex in range(len(path.nodes)):
                     node = path.nodes[nodeIndex]
                     if path.swapStatus[node] == False:
-                        link1 = path.links[nodeIndex - 1]
-                        link2 = path.links[nodeIndex]
-                        if link1.entangled and link2.entangled:
-                            swapSuccess = path.swapStatus[node] = node.attemptSwapping(link1, link2)
-                            if swapSuccess == False:
-                                # swapping failed clear all link and swapStatus
-                                for Index in range(path.tempNodeIndex, nodeIndex + 1):
-                                    path.links[Index].clearPhase4Swap()
+                        if swapped == False:
+                            swapped = True
+                            link1 = path.links[nodeIndex - 1]
+                            link2 = path.links[nodeIndex]
+                            if link1.entangled and link2.entangled:
+                                swapSuccess = path.swapStatus[node] = node.attemptSwapping(link1, link2)
+                                if swapSuccess == False:
+                                    # swapping failed clear all link and swapStatus
+                                    Index = nodeIndex - 1
+                                    while Index > 0 and path.nodeSwap[Index] == True:
+                                        Index -= 1
+                                    left = Index + 1
 
-                                path.setStatus()
-                        break
+                                    Index = nodeIndex + 1
+                                    while Index < len(path.nodes) and path.nodeSwap[Index] == True:
+                                        Index += 1
+                                    right = Index - 1
+
+                                    path.links[left - 1].clearPhase4Swap()
+                                    for Index in range(left, right + 1):
+                                        path.nodeSwap[path.nodes[Index]] = False
+                                        path.links[Index].clearPhase4Swap()
+                        else:
+                            swapped = False
+
 
                 thisPathFinish = True
                 for node in path.nodes:
@@ -185,21 +200,29 @@ class REPS(AlgorithmBase):
                         path.setStatus()
                         successForward = True
                 else:
-                    forwardStep = 0
+                    farestTrustedNodeIndex = path.tempNodeIndex
+                    currentTempNode = path.nodes[path.tempNodeIndex]
                     for nodeIndex in range(path.tempNodeIndex + 1, len(path.nodes)):
                         node = path.nodes[nodeIndex]
                         if path.swapStatus[node]:
-                            forwardStep += 1
+                            if currentTempNode in self.topo.socialRelationship[node]:
+                                farestTrustedNodeIndex = nodeIndex
                         else:
                             break
-                        
+                    forwardStep = farestTrustedNodeIndex - path.TempNodeIndex
                     if forwardStep >= self.k:
-                        path.tempNodeIndex += forwardStep
+                        path.tempNodeIndex = farestTrustedNodeIndex
                         path.setStatus()
                         successForward = True
 
-                if successForward:
-                    self.tempPath = path.index
+                if successForward and request.tempPathIndex == -1:
+                    request.tempPathIndex = path.index
+                    for otherPath in request.paths:
+                        if otherPath.index == path.index:
+                            continue
+                        for link in otherPath.links:
+                            link.clearEntanglement()
+                    break
 
         for request in finishedRequest:
             for path in request.paths:
