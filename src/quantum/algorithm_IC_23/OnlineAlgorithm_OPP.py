@@ -30,6 +30,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
         self.state = {}
         self.req2Intermediate = {}
         self.reqBroken = {}
+        self.reqStorageTime = {}
         self.k = k
 
         self.totalTime = 0
@@ -54,6 +55,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
             self.reqBroken[(src, dst, self.timeSlot)] = False
+            self.reqStorageTime[(src, dst, self.timeSlot)] = 0
 
         if len(self.requests) > 0:
             self.result.numOfTimeslot += 1
@@ -110,6 +112,8 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 
                 if intermediate == arrive:
                     continue
+                
+                self.reqStorageTime[req] = 0
 
                 if intermediate != req[0]:  
                     intermediate.remainingQubits += 1 
@@ -332,15 +336,16 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             return path[0]  # Forward 0 hop
         
         if self.k == 1:
-            # if path[1].remainingQubits < 1:
-            #     return path[0]  # Forward 0 hop
-            # else:
-            #     path[1].remainingQubits -= 1
-            #     return path[1]  # Forward 1 hop
+            if path[1].remainingQubits < 1:
+                # return path[0]  # Forward 0 hop
+                pass
+            else:
+                path[1].remainingQubits -= 1
+                return path[1]  # Forward 1 hop
 
             # Can consume extra memory
-            path[1].remainingQubits -= 1
-            return path[1]  # Forward 1 hop
+            # path[1].remainingQubits -= 1
+            # return path[1]  # Forward 1 hop
 
         for n in range(1, len(path)-1):
             prevLink = links[n-1]
@@ -367,6 +372,8 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):
                 continue
 
+        return path[0]
+
     def p4(self):
         reqUpdated = {req: 0 for req in self.req2Intermediate}
         finished = []
@@ -391,10 +398,12 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 
                 if intermediate == arrive:
                     continue
+                
+                self.reqStorageTime[req] = 0
 
                 if intermediate != req[0]:  
                     intermediate.remainingQubits += 1 
-
+                
                 if arrive == req[1]:
                     finished.append(req)
 
@@ -405,12 +414,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                 reqUpdated[req] = 1
             # for w end
         # for pathWithWidth end
-
-        # Calculate the idle time for all requests
-        for req in self.requests:
-            if self.state[req] == 0: 
-                self.result.idleTime += 1
-        
+      
         removedPickedPath = []
 
         # Calculate the finished number of requests and delete 
@@ -442,6 +446,38 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 
         for pathWithWidth in removedPickedPath:
             self.majorPaths.remove(pathWithWidth)
+
+        resetReq = []
+        removedPickedPath = []
+
+        # Update storage time 
+        for req in self.requests:
+            if req in self.req2Intermediate and req[0] != self.req2Intermediate[req]:
+                self.reqStorageTime[req] += 1
+
+                if self.reqStorageTime[req] > self.topo.L:
+                    self.req2Intermediate[req].remainingQubits += 1 
+                    resetReq.append(req)
+                    self.state[req] = 0
+                    print('reset')
+
+        # Delete used links and clear entanglement for finished SD-pairs 
+        for pathWithWidth in self.majorPaths:
+            width = pathWithWidth.width
+            path = tuple(pathWithWidth.path)
+            time = pathWithWidth.time
+            req = (path[0], path[-1], time)
+
+            if req in resetReq: 
+                if path in self.bindLinks[req]:
+                    for w in range(0, width): 
+                        for link in self.bindLinks[req][path][w]:
+                            link.clearEntanglement()
+                    self.bindLinks[req].pop(path)
+                removedPickedPath.append(pathWithWidth)
+
+        for pathWithWidth in removedPickedPath:
+            self.majorPaths.remove(pathWithWidth)
        
         # Update links' lifetime       
         for pathWithWidth in self.majorPaths:
@@ -469,6 +505,12 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
         #   RECORD EXPERIMENT   #
         #                       #
 
+        # Calculate the idle time for all requests
+        for req in self.requests:
+            if self.state[req] == 0: 
+                self.result.idleTime += 1
+
+        # Calculate the remaining time for unfinished SD-pairs        
         remainTime = 0
         for remainReq in self.requests:
             print('[', self.name, '] Remain Requests:', remainReq[0].id, remainReq[1].id, remainReq[2])
@@ -489,7 +531,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.001, 6)
+    topo = Topo.generate(100, 0.9, 5, 0.008, 6)
     # f = open('logfile.txt', 'w')
     
     a1 = OnlineAlgorithm_OPP(topo)
