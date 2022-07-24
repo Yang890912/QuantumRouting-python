@@ -162,9 +162,12 @@ class Topo:
         # establish Path table
         self.genShortestPathTable('New')
         # self.genShortestPathTable('Hop')
-   
+    
+    def trans(self, p):
+        return self.L*p / (self.L*p - p + 1)
+
     def weight(self, p):
-        return -1 * math.log(self.L*p / (self.L*p - p + 1)) 
+        return -1 * math.log(self.trans(p)) 
 
     def distance(self, pos1: tuple, pos2: tuple): # para1 type: tuple, para2 type: tuple
         d = 0

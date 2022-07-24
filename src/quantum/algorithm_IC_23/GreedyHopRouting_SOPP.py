@@ -25,8 +25,6 @@ class GreedyHopRouting_SOPP(AlgorithmBase):
         self.req2Path = {}
         self.reqBroken = {}
         self.ks = ks
-        self.l = 2
-        self.r = 1
 
         self.totalTime = 0
         self.totalUsedQubits = 0

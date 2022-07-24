@@ -21,7 +21,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         self.state = {}
         self.req2Intermediate = {}
         self.reqBroken = {}
-        self.reqAndIntermediate2Time = {}
+        self.reqStorageTime = {}
         self.k = k
 
         self.totalTime = 0
@@ -108,6 +108,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
             self.bindLinks[(src, dst, self.timeSlot)] = {}
             self.state[(src, dst, self.timeSlot)] = 0
             self.reqBroken[(src, dst, self.timeSlot)] = False
+            self.reqStorageTime[(src, dst, self.timeSlot)] = 0
     
         # Record the number of time solve requests
         if len(self.requests) > 0:
@@ -206,6 +207,9 @@ class GreedyHopRouting_OPP(AlgorithmBase):
             if req in finished:
                 continue
             
+            if intermediate != req[0]: 
+                self.reqStorageTime[req] += 1
+
             for w in range(0, width): 
                 if intermediate not in p or intermediate == req[1] or reqUpdated[req] == 1:
                     continue
@@ -215,16 +219,19 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 _links = links[p.index(intermediate):len(p)-1]
                 arrive = self.swapped(_p, _links)
 
-                if intermediate == arrive:
+                if intermediate == arrive:  # not forward
                     continue
-              
-                if intermediate != req[0]: 
+
+                if intermediate != req[0]:  
                     intermediate.remainingQubits += 1 
 
-                if arrive == req[1]:
-                    finished.append(req) 
+                if arrive != req[1]:    # arrive a new intermediate
+                    self.reqStorageTime[req] = 0
 
-                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]:
+                if arrive == req[1]:    # arrive to destination
+                    finished.append(req)
+
+                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]: # arrive to not trust intermediate
                     self.reqBroken[req] = True
 
                 self.req2Intermediate[req] = arrive
@@ -274,22 +281,25 @@ class GreedyHopRouting_OPP(AlgorithmBase):
             for w in range(0, width): 
                 if intermediate not in p or intermediate == req[1] or reqUpdated[req] == 1:
                     continue
-
+                
                 links = self.bindLinks[req][path][w]
                 _p = p[p.index(intermediate):len(p)]
                 _links = links[p.index(intermediate):len(p)-1]
                 arrive = self.swapped(_p, _links)
 
-                if intermediate == arrive:
+                if intermediate == arrive:  # not forward
                     continue
-
+      
+                if arrive != req[1]:    # arrive a new intermediate
+                    self.reqStorageTime[req] = 0
+                
                 if intermediate != req[0]:  
                     intermediate.remainingQubits += 1 
 
-                if arrive == req[1]:
+                if arrive == req[1]:    # arrive to destination
                     finished.append(req)
 
-                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]:
+                if arrive not in self.topo.socialRelationship[req[0]] and arrive != req[1]: # arrive to not trust intermediate
                     self.reqBroken[req] = True
 
                 self.req2Intermediate[req] = arrive
@@ -314,6 +324,31 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                     self.pathsSortedDynamically.remove(path)
                 self.bindLinks.pop(req)
                 self.req2Intermediate.pop(req)
+        
+        # # Update storage time 
+        # for req in self.requests:
+        #     if req in self.req2Intermediate and req[0] != self.req2Intermediate[req]:
+        #         self.reqStorageTime[req] += 1
+        #         popPath = []
+
+        #         if self.reqStorageTime[req] > self.topo.L:
+        #             self.req2Intermediate[req].remainingQubits += 1 
+                    
+        #             # Delete used links and clear entanglement for  SD-pairs
+        #             if req in self.bindLinks:
+        #                 for path in self.bindLinks[req]:
+        #                     (_, width, p, time, req) = path
+        #                     for w in range(0, width): 
+        #                         for link in self.bindLinks[req][path][w]:
+        #                             link.clearEntanglement()
+        #                     self.pathsSortedDynamically.remove(path)
+        #                     popPath.append(path)
+                    
+        #                 for path in popPath:
+        #                     if path in self.bindLinks[req]:
+        #                         self.bindLinks[req].pop(path) 
+
+        #             self.state[req] = 0
 
         # Update links' lifetime       
         for path in self.pathsSortedDynamically:
@@ -372,7 +407,7 @@ if __name__ == '__main__':
     # a4 = FER_OPP(topo, 1)
  
     samplesPerTime = 8
-    ttime = 100
+    ttime = 200
     rtime = 5
     requests = {i : [] for i in range(ttime)}
     memory = {}
