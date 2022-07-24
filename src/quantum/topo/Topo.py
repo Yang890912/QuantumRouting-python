@@ -43,6 +43,7 @@ class socialGenerator:
             user = sample(users, 1)
             node2user[i] = user[0]
         
+        # n * n
         for i in range(len(self.topo.nodes)):
             for j in range(i+1, len(self.topo.nodes)):
                 user1 = node2user[i]
@@ -55,6 +56,7 @@ class socialGenerator:
                     # print('[system] Construct social relationship: node 1 ->', n1.id, ', node 2 ->', n2.id)
 
     def genSocialNetwork(self, userNum, density):
+        # n * n
         community1 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 2, 2, 2, 2, 3, 2, 2, 2, 3, 2]  # 0.25
         community2 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1]  # 0.50
         community3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]  # 0.75
@@ -87,19 +89,10 @@ class Topo:
         self.density = density
         self.sentinel = Node(-1, (-1.0, -1.0), -1, self)
 
-        self.socialRelationship = {}
-        self.shortestPathTable = {}   
+        self.socialRelationship = {}    # {n: []}
+        self.shortestPathTable = {}     # {(src, dst): (path, weight, p)}
+        self.expectTable = {}           # {(path1, path2) : expectRound}
         self.SN = {}
-
-        # for pos in _positions:
-        #     print(_positions[pos])
-
-        # for _node in _nodes:
-        #     for _node2 in _nodes:
-        #         if self.distance(_positions[_node], _positions[_node2]) <= 10:
-        #             print('node 1:', _node, 'node 2:', _node2, self.distance(_positions[_node], _positions[_node2]))
-
-        # _edges = [] # reset edge
 
         # Construct neighbor table by int type
         _neighbors = {_node: [] for _node in _nodes}
@@ -139,17 +132,13 @@ class Topo:
             for neighbor in _neighbors[node.id]:
                 node.neighbors.append(self.nodes[neighbor])
 
-        # for _node in _nodes:
-        #     print(_node, _neighbors[_node])
-
-        #     for _node2 in _neighbors[_node]:
-        #         print(self.distance(_positions[_node], _positions[_node2]))
-
-        # print('average neighbors:', len(_edges)*2/len(_nodes))
-
         # Construct Link
         linkId = 0
+        length = 0
+        times = 0
         for _edge in _edges:
+            times += 1
+            length += self.distance(_positions[_edge[0]], _positions[_edge[1]])
             self.edges.append((self.nodes[_edge[0]], self.nodes[_edge[1]]))
             rand = int(random.random()*5+3) # 3~7
             for _ in range(0, rand):
@@ -159,10 +148,33 @@ class Topo:
                 self.nodes[_edge[1]].links.append(link)
                 linkId += 1
         
+        print('Average Length:', length / times)
+
         # establish Path table
         self.genShortestPathTable('New')
         # self.genShortestPathTable('Hop')
-    
+
+    def generate(n, q, k, a, degree):
+        checker = TopoConnectionChecker()
+        while True:
+            G = nx.waxman_graph(n, beta=0.9, alpha=0.01, domain=(0, 0, 1, 2))
+            topo = Topo(G, q, k, a, degree)
+            checker.setTopo(topo)
+            if checker.checkConnected():
+                break
+            else:
+                print("topo is not connected", file = sys.stderr)
+
+        # establish social table
+        generator = socialGenerator()
+        generator.setTopo(topo)
+        generator.genSocialRelationship()
+
+        # establish expect table
+        # topo.genExpectTable()
+
+        return topo
+
     def trans(self, p):
         return self.L*p / (self.L*p - p + 1)
 
@@ -174,26 +186,6 @@ class Topo:
         for a, b in zip(pos1, pos2):
             d += (a-b) ** 2
         return d ** 0.5
-
-    def generate(n, q, k, a, degree):
-        # dist = lambda x, y: distance(x, y)
-        # dist = lambda x, y: sum((a-b)**2 for a, b in zip(x, y))**0.5
-        
-        checker = TopoConnectionChecker()
-        while True:
-            G = nx.waxman_graph(n, beta=0.9, alpha=0.01, domain=(0, 0, 1, 2))
-            topo = Topo(G, q, k, a, degree)
-            checker.setTopo(topo)
-            if checker.checkConnected():
-                break
-            else:
-                print("topo is not connected", file = sys.stderr)
-
-        generator = socialGenerator()
-        generator.setTopo(topo)
-        generator.genSocialRelationship()
-    
-        return topo
 
     def widthPhase2(self, path):
         curMinWidth = min(path[0].remainingQubits, path[-1].remainingQubits)
@@ -289,14 +281,73 @@ class Topo:
         return len(path[1]) - 1
 
     def genShortestPathTable(self, Type):
-        print('Generate Path table, Type:', Type)
+        # n * n
+        print('Generate Path Table, Type:', Type)
         for n1 in self.nodes:
             for n2 in self.nodes:
-                if n1 != n2:           
-                    self.shortestPathTable[(n1, n2)] = self.shortestPath(n1, n2, Type)
-                    # print([x.id for x in self.shortestPathTable[(n1, n2)][1]])
-                    if len(self.shortestPathTable[(n1, n2)][1]) == 0:
+                if n1 != n2:   
+                    weight, path = self.shortestPath(n1, n2, Type)        
+                    p = self.Pr(path)
+                    self.shortestPathTable[(n1, n2)] = (path, weight, p)
+                    # print([x.id for x in path])
+                    if len(path) == 0:
                         quit()
+
+    def genExpectTable(self):
+        # n * n * k
+        print('Generate Expect Table ...')
+        for n1 in self.nodes:
+            for k in self.socialRelationship[n1]:
+                for n2 in self.nodes:
+                    if n1 != n2 and k != n2:
+                        self.expectTable[((n1, k), (k, n2))] = self.expectedRound(self.shortestPathTable[(n1, k)][2], self.shortestPathTable[(k, n2)][2])
+
+    def expectedRound(self, p1, p2):
+        # 大數法則
+        times = 250
+        roundSum = 0
+
+        for _ in range(times):
+            roundSum += self.Round(p1, p2)
+
+        print('expect:', roundSum / times)
+        return roundSum / times
+    
+    def Round(self, p1, p2):
+        state = 0 # 0 1 2
+        maxRound = 5000
+        currentRound = 0
+        currentMaintain = 0
+
+        if p1 < 0.0002 or p2 < 0.0002:
+            return maxRound
+
+        while state != 2:
+            if currentRound >= maxRound:
+                break
+            currentRound += 1
+            if state == 0:
+                if random.random() <= p1:
+                    state = 1
+            elif state == 1:
+                currentMaintain += 1
+                if currentMaintain > self.L:
+                    state = 0
+                    currentMaintain = 0
+                elif random.random() <= p2:
+                    state = 2
+        return currentRound
+
+    def Pr(self, path):
+        P = 1
+        for i in range(len(path) - 1):
+            n1 = path[i]
+            n2 = path[i+1]
+            d = self.distance(n1.loc, n2.loc)
+            p = self.trans(math.exp(-self.alpha * d))
+            P *= p
+   
+        return P 
 
     def e(self, path: list, width: int, oldP: list):
         s = len(path) - 1
@@ -435,9 +486,11 @@ class Topo:
     def setL(self, L):
         self.L = L
         self.genShortestPathTable('New')
+        self.genExpectTable()
     
     def setDensity(self, density):
         self.density = density
         generator = socialGenerator()
         generator.setTopo(self)
         generator.genSocialRelationship()
+        self.genExpectTable()
