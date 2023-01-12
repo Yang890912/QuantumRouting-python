@@ -20,8 +20,8 @@ class OnlineAlgorithm(AlgorithmBase):
 
     def __init__(self, topo, allowRecoveryPaths = True):
         super().__init__(topo)
-        self.pathsSortedDynamically = []
         self.name = "QCAST"
+        self.pathsSortedDynamically = []
         self.majorPaths = []            # [PickedPath, ...]
         self.recoveryPaths = {}         # {PickedPath: [PickedPath, ...], ...}
         self.pathToRecoveryPaths = {}   # {PickedPath : [RecoveryPath, ...], ...}

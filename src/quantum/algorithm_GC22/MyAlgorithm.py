@@ -15,7 +15,7 @@ class Request:
         self.src = src
         self.dst = dst
         self.time = time
-        self.state = 0  # 0:初始 , 1:無分段, 2:前段, 3:後段
+        self.state = 0  # 0:init / 1:non-seg / 2:predating / 3:postdating
         self.storageTime = 0
         self.intermediate = None
         self.path1 = Path()
@@ -32,8 +32,8 @@ class MyAlgorithm(AlgorithmBase):
 
     def __init__(self, topo):
         super().__init__(topo)
+        self.name = "SEER"
         self.pathsSortedDynamically = []
-        self.name = "My"
         self.r = 7                     # 暫存回合
         self.requests = []  
         self.totalTime = 0
