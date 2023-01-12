@@ -1,28 +1,27 @@
 import multiprocessing
 import sys
 import copy
+import csv
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
 from AlgorithmBase import AlgorithmResult
-from MyAlgorithm import MyAlgorithm
-from test2 import test2
-from OnlineAlgorithm import OnlineAlgorithm
+from SAGE import SAGE
 from GreedyHopRouting import GreedyHopRouting
-from REPS import REPS
-from FER import FER
-from OnlineAlgorithm_OPP import OnlineAlgorithm_OPP
 from GreedyHopRouting_OPP import GreedyHopRouting_OPP
+from GreedyHopRouting_SOAR import GreedyHopRouting_SOAR
+from QCAST import QCAST
+from QCAST_OPP import QCAST_OPP
+from QCAST_SOAR import QCAST_SOAR
+from REPS import REPS
 from REPS_OPP import REPS_OPP
-from FER_OPP import FER_OPP
-from OnlineAlgorithm_SOPP import OnlineAlgorithm_SOPP
-from GreedyHopRouting_SOPP import GreedyHopRouting_SOPP
-from REPS_SOPP import REPS_SOPP
-from FER_SOPP import FER_SOPP
+from REPS_SOAR import REPS_SOAR
+
 from topo.Topo import Topo
 from topo.Node import Node
 from topo.Link import Link
 from random import sample
 from numpy import log as ln
+
 
 
 def runThread(algo, requests, algoIndex, ttime, pid, resultDict):
@@ -131,6 +130,7 @@ if __name__ == '__main__':
     temp = AlgorithmResult()
     Ylabels = temp.Ylabels # Ylabels = ["algorithmRuntime", "waitingTime", "idleTime", "usedQubits", "temporaryRatio"]
     
+    algorithmNames = ["SAGE", "Greedy", "QCAST", "REPS"]
     numOfRequestPerRound = [1, 2, 3, 4, 5]
     totalRequest = [10, 20, 30, 40, 50]
     numOfNodes = [50, 100, 150, 200]
@@ -214,17 +214,37 @@ if __name__ == '__main__':
         # Ydata[2] = numOfNode = 50 algo1Result algo2Result ... 
         # Ydata[3] = numOfNode = 100 algo1Result algo2Result ... 
 
-        for Ylabel in Ylabels:
-            filename = Xlabel + "_" + Ylabel + ".txt"
+        # write in txt
+        # for Ylabel in Ylabels:
+        #     filename = Xlabel + "_" + Ylabel + ".txt"
+        #     F = open(targetFilePath + filename, "w")
+        #     for i in range(len(Xparameters[XlabelIndex])):
+        #         Xaxis = str(Xparameters[XlabelIndex][i])
+        #         Yaxis = [algoResult.toDict()[Ylabel] for algoResult in Ydata[i]]
+        #         Yaxis = str(Yaxis).replace("[", " ").replace("]", "\n").replace(",", "")
+        #         F.write(Xaxis + Yaxis)
+        #     F.close()
+        
+        # write in csv
+        for Ylabel in Ylabels: # 結果寫入檔案
+            filename = Xlabel + "_" + Ylabel + ".csv"
             F = open(targetFilePath + filename, "w")
+            writer = csv.writer(F) # create the csv writer
+            
+            row = []
+            row.append(Xlabel + " \\ " + Ylabel)
+            row.extend(algorithmNames)  
+            writer.writerow(row) # write a row to the csv file
+            
             for i in range(len(Xparameters[XlabelIndex])):
-                Xaxis = str(Xparameters[XlabelIndex][i])
-                Yaxis = [algoResult.toDict()[Ylabel] for algoResult in Ydata[i]]
-                Yaxis = str(Yaxis).replace("[", " ").replace("]", "\n").replace(",", "")
-                F.write(Xaxis + Yaxis)
+                row = []
+                row.append(Xparameters[XlabelIndex][i])
+                row.extend([algoResult.toDict()[Ylabel] for algoResult in Ydata[i]])
+                writer.writerow(row)
             F.close()
 
     exit(0)
+
     # write remainRequestPerRound
     results = Run(numOfRequestPerRound = 50, rtime = 1) # algo1Result algo2Result ...
     for result in results:
@@ -232,11 +252,30 @@ if __name__ == '__main__':
     
     # sampleRounds = [0, 5, 10, 15, 20, 25]
     sampleRounds = [0, 2, 4, 6, 8, 10]
-    filename = "Timeslot" + "_" + "#remainRequest" + ".txt"
+
+    # write in txt
+    # filename = "Timeslot" + "_" + "#remainRequest" + ".txt"
+    # F = open(targetFilePath + filename, "w")
+    # for roundIndex in sampleRounds:
+    #     Xaxis = str(roundIndex)
+    #     Yaxis = [result.remainRequestPerRound[roundIndex] for result in results]
+    #     Yaxis = str(Yaxis).replace("[", " ").replace("]", "\n").replace(",", "")
+    #     F.write(Xaxis + Yaxis)
+    # F.close()
+
+    # write in csv
+    filename = "Timeslot" + "_" + "#remainRequest" + ".csv"
     F = open(targetFilePath + filename, "w")
+    writer = csv.writer(F) # create the csv writer
+    
+    row = []
+    row.append(Xlabel + " \\ " + Ylabel)
+    row.extend(algorithmNames)  
+    writer.writerow(row) # write a row to the csv file
+
     for roundIndex in sampleRounds:
-        Xaxis = str(roundIndex)
-        Yaxis = [result.remainRequestPerRound[roundIndex] for result in results]
-        Yaxis = str(Yaxis).replace("[", " ").replace("]", "\n").replace(",", "")
-        F.write(Xaxis + Yaxis)
+        row = []
+        row.append(str(roundIndex))
+        row.extend(result.remainRequestPerRound[roundIndex] for result in results)
+        writer.writerow(row)
     F.close()
