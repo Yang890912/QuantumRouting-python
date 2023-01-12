@@ -21,7 +21,8 @@ class Request:
         self.intermediate = intermediate
         self.paths = []
         self.CImark = False
- 
+        self.pathlen = 0
+
 class Path:
 
     def __init__(self):
@@ -29,19 +30,143 @@ class Path:
         self.links = []
         self.intermediates = []
 
-class OnlineAlgorithm_OPP(AlgorithmBase):
+class QCAST_SOAR(AlgorithmBase):
 
     def __init__(self, topo):
         super().__init__(topo)
-        self.name = "QCAST_OPP"
+        self.name = "QCAST_SOAR"
         self.requests = []
+        self.mark= {}
 
         self.totalTime = 0
         self.totalUsedQubits = 0
+        self.totalNumOfReq = 0
+        self.totalNumOfBrokenReq = 0
 
     def prepare(self):
         self.totalTime = 0
         self.requests.clear()
+
+    def releaseUsedLinks(self, request):
+        intermediate = request.intermediate
+        unavaliablePaths = []
+
+        for path in request.paths:
+            p = path.path
+            links = path.links
+
+            if intermediate not in p:
+                for link in links:
+                    link.clearEntanglement()
+                unavaliablePaths.append(path)
+            else:
+                path.path = p[p.index(intermediate):len(p)]
+                # Update links
+                for i in range(p.index(intermediate)):
+                    links[i].clearEntanglement()
+                path.links = links[p.index(intermediate):len(p)-1]
+                # Update intermediates
+                if intermediate in path.intermediates: 
+                    path.intermediates.remove(intermediate)
+                pass
+        
+        for path in unavaliablePaths:
+            if path in request.paths:
+                request.paths.remove(path)
+
+    def trySwapped(self):
+        for req in self.requests:
+            paths = req.paths
+            if len(paths) != 0:
+                req.state = 1
+            
+            if req.state == 0:
+                continue
+
+            for path in paths:
+                p = path.path
+                links = path.links
+                intermediate = req.intermediate
+                intermediates = path.intermediates
+             
+                _p = p[p.index(intermediate):len(p)]
+                _links = links[p.index(intermediate):len(p)-1]
+                arrive = self.swapped(_p, _links, intermediate, intermediates)
+  
+    def tryForward(self):
+        # Forward
+        reqUpdated = {req: 0 for req in self.requests}
+        finished = []
+        for req in self.requests:
+            paths = req.paths
+            if len(paths) != 0:
+                req.state = 1
+            
+            if req.state == 0:
+                continue
+
+            for path in paths:
+                p = path.path
+                links = path.links
+                intermediate = req.intermediate
+                intermediates = path.intermediates
+
+                if intermediate not in p or intermediate == req.dst or reqUpdated[req] == 1:
+                    continue
+                
+                _p = p[p.index(intermediate):len(p)]
+                _links = links[p.index(intermediate):len(p)-1]
+                arrive = self.forward(_p, _links, intermediate, intermediates)
+
+                if intermediate == arrive:
+                    continue
+                
+                if intermediate != req.src:  # Increase 1 Qubits for intermediate
+                    intermediate.clearIntermediate() 
+                
+                if arrive != req.dst:    # Arrive not destination
+                    arrive.assignIntermediate()
+                else:
+                    finished.append(req)
+                
+                if arrive not in self.topo.socialRelationship[req.src] and arrive != req.dst: # Check the trust for intermediate
+                    req.broken = True
+
+                if not req.CImark:
+                    req.CImark = True
+                    # Calculate the rate of intermediate
+                    for s in range(1, len(p) - 2):
+                        self.totalNumOfNormalNodeOnPath += 1
+                        if p[s] in self.topo.socialRelationship[req.src]:
+                            self.totalNumOfIntermediate += 1
+                
+                req.intermediate = arrive
+                req.storageTime = 0
+                reqUpdated[req] = 1
+                req.numOfTemporary += 1
+                req.pathlen = len(p)
+                self.releaseUsedLinks(req)
+                self.totalNumOfTemporary += 1
+
+        # Delete the finished request
+        for req in finished:
+            if req in self.requests:
+                print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
+                self.totalTime += self.timeSlot - req.time
+                if req.broken:
+                    self.totalNumOfBrokenReq += 1
+                self.totalNumOfFinishedReq += 1
+                self.totalNumOfSecureReq = self.totalNumOfFinishedReq - self.totalNumOfBrokenReq
+                self.requests.remove(req)
+                # self.totalNumOfTemporary += req.numOfTemporary
+                # self.totalLenOfPath += req.pathlen
+
+            paths = req.paths
+            # Delete used links and clear entanglement for finished SD-pairs 
+            for path in paths:
+                links = path.links
+                for link in links:
+                    link.clearEntanglement()
 
     # P2
     def p2(self):
@@ -51,6 +176,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
             self.totalNumOfReq += 1
             request = Request(src, dst, self.timeSlot, src)
             self.requests.append(request)
+            self.mark[request] = False
 
         if len(self.requests) > 0:
             self.result.numOfTimeslot += 1
@@ -66,79 +192,8 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                 self.pickAndAssignPath(pick)
             else:
                 break
-    
+        
         print('[', self.name, '] P2 End')
-
-    def trySwapped(self):
-        # Swapped 
-        reqUpdated = {req: 0 for req in self.requests}
-        finished = []
-        for req in self.requests:
-            paths = req.paths
-            if len(paths) != 0:
-                req.state = 1
-            
-            if req.state == 0:
-                continue
-
-            for path in paths:
-                p = path.path
-                links = path.links
-                intermediate = req.intermediate
-
-                if intermediate not in p or intermediate == req.dst or reqUpdated[req] == 1:
-                    continue
-                
-                _p = p[p.index(intermediate):len(p)]
-                _links = links[p.index(intermediate):len(p)-1]
-                arrive = self.swapped(_p, _links)
-
-                if intermediate == arrive:
-                    continue
-                
-                if intermediate != req.src:  # Increase 1 Qubits for intermediate
-                    intermediate.clearIntermediate() 
-                
-                if arrive != req.dst:    # Arrive not destination
-                    # arrive.assignIntermediate()
-                    pass
-                else:
-                    finished.append(req)
-                
-                if arrive not in self.topo.socialRelationship[req.src] and arrive != req.dst: # Check the trust for intermediate
-                    req.broken = True
-                
-                if not req.CImark:
-                    req.CImark = True
-                    # Calculate the rate of intermediate
-                    for s in range(1, len(p) - 2):
-                        self.totalNumOfNormalNodeOnPath += 1
-                        if p[s] in self.topo.socialRelationship[req.src]:
-                            self.totalNumOfIntermediate += 1
-                
-                req.intermediate = arrive
-                req.storageTime = 0
-                reqUpdated[req] = 1
-                req.numOfTemporary += 1
-
-        # Delete the finished request
-        for req in finished:
-            if req in self.requests:
-                print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
-                self.totalTime += self.timeSlot - req.time
-                if req.broken:
-                    self.totalNumOfBrokenReq += 1
-                self.totalNumOfFinishedReq += 1
-                self.totalNumOfSecureReq = self.totalNumOfFinishedReq - self.totalNumOfBrokenReq
-                self.requests.remove(req)
-                self.totalNumOfTemporary += req.numOfTemporary
-
-            paths = req.paths
-            # Delete used links and clear entanglement for finished SD-pairs 
-            for path in paths:
-                links = path.links
-                for link in links:
-                    link.clearEntanglement()
 
     # Calculate the candidate path for each requests 
     def calCandidates(self, requests: list): # pairs -> [(Node, Node), ...]
@@ -155,7 +210,7 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 
             for w in range(maxM, 0, -1): # w = maxM, maxM-1, maxM-2, ..., 1
                 failNodes = []
-            
+
                 # collect failnodes (they dont have enough Qubits for SDpair in width w)
                 for node in self.topo.nodes:
                     if node.remainingQubits < 2 * w and node != src and node != dst:
@@ -261,78 +316,95 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                         self.totalUsedQubits += 2
                         link.assignQubits()
                         path.links.append(link)
-                        break 
+                        break  
 
+            # Construct Intermediates
+            last = 0    
+            for i in range(len(p)):
+                if p[i] != p[0] and p[i] != p[-1] and p[i] in self.topo.socialRelationship[p[0]] and i - self.topo.k >= last:
+                    last = i
+                    path.intermediates.append(p[i])
+                 
             request.paths.append(path)
- 
-    def swapped(self, path, links):
-        succNumOfLinks = 0
 
-        # Calculate the continuous succeed number of links whether larger than k
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
+    def swapped(self, path, links, intermediate, intermediates):
+        curr = path.index(intermediate)
 
-            if prevLink.entangled:
-                succNumOfLinks += 1
-            else:
-                break
-
-            if n == len(path)-2:
-                if nextLink.entangled:
-                    succNumOfLinks = self.topo.k
-
-        # If path just 2 length 
+        # path length = 2
         if len(path) == 2:  
             if links[0].entangled:
                 return path[1]
             else:
                 return path[0]
 
-        if succNumOfLinks < self.topo.k:
-            return path[0]  # Forward 0 hop
-        
-        if self.topo.k == 1:
-            if path[1].remainingQubits < 1:
-                # return path[0]  # Forward 0 hop
-                pass
-            else:
-                path[1].remainingQubits -= 1
-                return path[1]  # Forward 1 hop
-
-            # Can consume extra memory
-            # path[1].remainingQubits -= 1
-            # return path[1]  # Forward 1 hop
+        canSwapped = 1  # cumulation 2 -> can swapped
 
         for n in range(1, len(path)-1):
             prevLink = links[n-1]
             nextLink = links[n]
 
-            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not nextLink.swappedAt(path[n]):
-                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed 
-                    for link in links:
-                        if link.swapped():
-                            link.clearPhase4Swap() 
-                    return path[0]  # Forward 0 hop
-                else:                                               # Swap succeed 
-                    if n+1 >= self.topo.k or n == len(path)-2:   # satisfy k   
-                        if path[n+1] == path[-1]:   # next terminal
-                            return path[-1]
+            if (prevLink, nextLink) not in path[n].internalLinks and (nextLink, prevLink) not in path[n].internalLinks:
+                # if path[n] in intermediates:    # NOT CHECKED
+                #     if prevLink.entangled and path[n].remainingQubits >= 1:
+                #         canSwapped = 1
+                #     else:
+                #         canSwapped += 1
+                # else:
+                canSwapped += 1
+                if canSwapped >= 2 and prevLink.entangled and nextLink.entangled:
+                    if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed 
+                        prevLink.clearPhase4Swap()
+                        nextLink.clearPhase4Swap()
+                        # check left link swapped
+                        for i in range(n-1,0,-1):
+                            if links[i-1].swappedAt(path[i]):
+                                links[i-1].clearPhase4Swap()
+                            else:
+                                break 
+                        # check right link swapped
+                        for i in range(n+1,len(path)-1):
+                            if links[i].swappedAt(path[i]):
+                                links[i].clearPhase4Swap()
+                            else:
+                                break
+                    canSwapped = 0
 
-                        if path[n+1].remainingQubits < 1:   # has enough memory
-                            return path[0]  # Forward 0 hop
-                        else:
-                            path[n+1].remainingQubits -= 1
-                            return path[n+1]  # Forward n+1 hop
-                    else:   
-                        return path[0]      # Forward 0 hop
-            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):
-                continue
-        
-        return path[0]
+                        
+        return path[curr]
+
+    def forward(self, path, links, intermediate, intermediates):
+        curr = path.index(intermediate)
+
+        # path length = 2
+        if len(path) == 2:  
+            if links[0].entangled:
+                return path[1]
+            else:
+                return path[0]
+
+        Connected = True
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
+
+            if path[n] in intermediates:    # n in intermediates and n is not swapped
+                if Connected and prevLink.entangled and path[n].remainingQubits >= 1 and (prevLink, nextLink) not in path[n].internalLinks:
+                    curr = n
+                    Connected = False
+
+            if prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):   # Already swapped 
+                if n+1 == len(path)-1 and Connected: 
+                    curr = n+1
+                    Connected = False
+            else:
+                Connected = False
+
+        return path[curr]
 
     def p4(self):
-          
+        
+        self.tryForward()
+
         # Update storage time
         for req in self.requests:
             if req.intermediate != req.src:
@@ -355,16 +427,19 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                         clear = True
                 # clear request' paths and reset
                 # print('reset')      
-                req.paths.clear()    
+                req.paths.clear()
+                self.numOfTimeOut += 1       
                 req.state = 0
                 req.storageTime = 0
                 req.intermediate = req.src
-
+                req.numOfTemporary = 0
+     
         # Update links' lifetime       
         for req in self.requests:
             paths = req.paths
             for path in paths: 
                 links = path.links
+                p = path.path
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
@@ -372,11 +447,23 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
                     if link.lifetime > self.topo.L:
                         # link is swapped
                         if link.swapped():
-                            for link2 in links:
-                                if link2.swapped():
-                                    link2.clearPhase4Swap()
-                        link.entangled = False
-                        link.lifetime = 0
+                            # check right swapped state
+                            for i in range(links.index(link), len(links)-1):
+                                if (links[i], links[i+1]) in p[i+1].internalLinks:
+                                    links[i].clearPhase4Swap()
+                                    links[i+1].clearPhase4Swap()
+                                else:
+                                    break
+                            # check left swapped state
+                            for i in range(links.index(link), -1, -1):
+                                if (links[i-1], links[i]) in p[i].internalLinks:
+                                    links[i-1].clearPhase4Swap()
+                                    links[i].clearPhase4Swap()
+                                else:
+                                    break
+                        else:
+                            link.entangled = False
+                            link.lifetime = 0
 
         #                       #                
         #   RECORD EXPERIMENT   #
@@ -384,14 +471,18 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 
         # Calculate the idle time for all requests
         for req in self.requests:
-            if req.state == 0:
+            if req.state == 0: 
                 self.idleTime += 1
 
         # Calculate the remaining time for unfinished SD-pairs
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
         for remainReq in self.requests:
+            print('[', self.name, '] Remain Requests:', remainReq.src.id, remainReq.dst.id, remainReq.time, remainReq.state)
             remainTime += self.timeSlot - remainReq.time
+            # print(remainReq.intermediate.id)
+            paths = remainReq.paths
+            # for path in paths:
+            #     print([x.id for x in path.path])
 
         # self.topo.clearAllEntanglements()
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)   
@@ -408,29 +499,4 @@ class OnlineAlgorithm_OPP(AlgorithmBase):
 if __name__ == '__main__':
 
     topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 30)
-
-    a1 = OnlineAlgorithm_OPP(topo)
-
-    samplesPerTime = 6
-    ttime = 100
-    rtime = 5
-    requests = {i : [] for i in range(ttime)}
-    memory = {}
-
-    # Record nodes' remainingqubits
-    for node in topo.nodes:
-        memory[node.id] = node.remainingQubits
-
-    # Generate requests
-    for i in range(ttime):
-        if i < rtime:
-            a = sample(topo.nodes, samplesPerTime)
-            for n in range(0,samplesPerTime,2):
-                requests[i].append((a[n], a[n+1]))
     
-    for i in range(ttime):
-        t1 = a1.work(requests[i], i)
-
-    for node in topo.nodes:
-        if memory[node.id] != node.remainingQubits:
-            print(node.id, memory[node.id]-node.remainingQubits)

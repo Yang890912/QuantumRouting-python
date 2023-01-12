@@ -110,8 +110,8 @@ class AlgorithmBase:
         self.totalNumOfTemporary = 0 # total number of temporary counts
         self.idleTime = 0   # total idle time
         self.numOfTimeOut = 0   # total timeout
-        self.doubleEntangled = ["My", "QCAST_SOPP", "Greedy_SOPP", "REPS_SOPP", "test", "test2"]
-        self.doubleSwapped = ["My", "QCAST_SOPP", "Greedy_SOPP", "REPS_SOPP", "Greedy", "QCAST", "REPS", "test", "test2"]
+        self.doubleEntangled = ["SAGE", "QCAST_SOAR", "Greedy_SOAR", "REPS_SOAR", "test", "test2"]
+        self.doubleSwapped = ["SAGE", "QCAST_SOAR", "Greedy_SOAR", "REPS_SOAR", "Greedy", "QCAST", "REPS", "test", "test2"]
         
     def prepare(self):
         pass
@@ -208,11 +208,5 @@ class PickedPath:
 
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.002, 6, 0.5, 30)
-    # neighborsOf = {}
-    # neighborsOf[1] = {1:2}
-    # neighborsOf[1].update({3:3})
-    # neighborsOf[2] = {2:1}
-
-    # print(neighborsOf[2][2])
+    pass
    

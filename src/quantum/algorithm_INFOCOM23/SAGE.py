@@ -3,9 +3,9 @@ import sys
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
 from GreedyHopRouting import GreedyHopRouting
-from GreedyHopRouting_SOPP import GreedyHopRouting_SOPP
+from GreedyHopRouting_SOAR import GreedyHopRouting_SOAR
 from GreedyHopRouting_OPP import GreedyHopRouting_OPP
-from OnlineAlgorithm_SOPP import OnlineAlgorithm_SOPP
+from QCAST_SOAR import QCAST_SOAR
 from topo.Topo import Topo 
 
 
@@ -31,11 +31,11 @@ class Path:
         self.links = []
         self.intermediates = []
 
-class MyAlgorithm(AlgorithmBase):
+class SAGE(AlgorithmBase):
 
     def __init__(self, topo, allowIntermediateFindPath = False):
         super().__init__(topo)
-        self.name = "My"
+        self.name = "SAGE"
         self.requests = []         
         self.allowIntermediateFindPath = allowIntermediateFindPath
         self.mark = {}
@@ -571,9 +571,9 @@ if __name__ == '__main__':
 
     topo = Topo.generate(30, 0.9, 1, 0.002, 6, 0.5, 15)
 
-    a1 = MyAlgorithm(topo)
-    a2 = GreedyHopRouting_SOPP(topo)
-    a3 = OnlineAlgorithm_SOPP(topo)
+    a1 = SAGE(topo)
+    a2 = GreedyHopRouting_SOAR(topo)
+    a3 = QCAST_SOAR(topo)
 
     samplesPerTime = 10
     ttime = 200

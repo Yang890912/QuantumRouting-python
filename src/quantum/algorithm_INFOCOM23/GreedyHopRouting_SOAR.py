@@ -1,11 +1,6 @@
 import sys
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase
-from GreedyHopRouting import GreedyHopRouting
-from OnlineAlgorithm import OnlineAlgorithm
-from FER import FER
-from GreedyHopRouting_OPP import GreedyHopRouting_OPP
-from FER_OPP import FER_OPP
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
@@ -33,11 +28,11 @@ class Path:
         self.links = []
         self.intermediates = []
 
-class GreedyHopRouting_SOPP(AlgorithmBase):
+class GreedyHopRouting_SOAR(AlgorithmBase):
 
     def __init__(self, topo):
         super().__init__(topo)
-        self.name = "Greedy_SOPP"
+        self.name = "Greedy_SOAR"
         self.requests = []
         self.mark = {}
 
@@ -445,28 +440,3 @@ if __name__ == '__main__':
 
     topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 10)
   
-    a1 = GreedyHopRouting_SOPP(topo)
-
-    samplesPerTime = 6
-    ttime = 100
-    rtime = 5
-    requests = {i : [] for i in range(ttime)}
-    memory = {}
-
-    # Record nodes' remainingqubits
-    for node in topo.nodes:
-        memory[node.id] = node.remainingQubits
-
-    # Generate requests
-    for i in range(ttime):
-        if i < rtime:
-            a = sample(topo.nodes, samplesPerTime)
-            for n in range(0,samplesPerTime,2):
-                requests[i].append((a[n], a[n+1]))
-    # a1
-    for i in range(ttime):
-        a1.work(requests[i], i)
-    
-    for node in topo.nodes:
-        if memory[node.id] != node.remainingQubits:
-            print(node.id, memory[node.id]-node.remainingQubits)

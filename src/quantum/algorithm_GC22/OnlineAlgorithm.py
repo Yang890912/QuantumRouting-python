@@ -428,15 +428,7 @@ class OnlineAlgorithm(AlgorithmBase):
 
 if __name__ == '__main__':
 
-    # topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 15)
-    # s = OnlineAlgorithm(topo)
-
-    # for i in range(0, 200):
-    #     if i < 10:
-    #         a = sample(topo.nodes, 2)
-    #         s.work([(a[0],a[1])], i)
-    #     else:
-    #         s.work([], i)
+    topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 15)
 
     
     

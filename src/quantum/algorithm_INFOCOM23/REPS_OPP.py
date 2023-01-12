@@ -563,20 +563,3 @@ class REPS_OPP(AlgorithmBase):
 if __name__ == '__main__':
     
     topo = Topo.generate(100, 0.9, 2, 0.001, 6, 0.5, 30)
-    s = REPS_OPP(topo)
-    result = AlgorithmResult()
-    SDpairPerTime = 5
-    ttime = 200
-    rtime = 30
-    requests = {i : [] for i in range(ttime)}
-
-    for i in range(rtime):
-        a = sample(topo.nodes, SDpairPerTime * 2)
-        for n in range(0, SDpairPerTime * 2, 2):
-            requests[i].append((a[n], a[n+1]))
-    
-    for i in range(ttime):
-        result = s.work(requests[i], i)
-    
-
-    print(result.waitingTime, result.numOfTimeslot)

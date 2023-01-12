@@ -67,10 +67,10 @@ class Request:
 
 
 
-class REPS_SOPP(AlgorithmBase):
+class REPS_SOAR(AlgorithmBase):
     def __init__(self, topo):
         super().__init__(topo)
-        self.name = "REPS_SOPP"
+        self.name = "REPS_SOAR"
         self.requests = []
         self.isBind = {link : False for link in self.topo.links}
         self.totalNumOfReq = 0
@@ -602,35 +602,4 @@ class REPS_SOPP(AlgorithmBase):
 
 if __name__ == '__main__':
     
-    Algorithms = []
     topo = Topo.generate(100, 0.9, 2, 0.002, 6, 0.5, 30)
-    Algorithms.append(REPS(copy.deepcopy(topo)))
-    Algorithms.append(REPS_OPP(copy.deepcopy(topo)))
-    Algorithms.append(REPS_SOPP(copy.deepcopy(topo)))
-    SDpairPerTime = 2
-    ttime = 200
-    rtime = 2
-    requestsID = {i : [] for i in range(ttime)}
-
-    for i in range(rtime):
-        for _ in range(SDpairPerTime):
-            SDpairIDList = sample([id for id in range(len(topo.nodes))], 2)
-            SDpairID = (SDpairIDList[0], SDpairIDList[1])
-            SDpair = (topo.nodes[SDpairID[0]], topo.nodes[SDpairID[1]])
-            distance = topo.shortestPath(topo.nodes[SDpairID[0]], topo.nodes[SDpairID[1]], "Hop")[0]
-            while distance <= 10:
-                SDpairIDList = sample([id for id in range(len(topo.nodes))], 2)
-                SDpairID = (SDpairIDList[0], SDpairIDList[1])
-                SDpair1 = (topo.nodes[SDpairID[0]], topo.nodes[SDpairID[1]])
-                distance = topo.shortestPath(topo.nodes[SDpairID[0]], topo.nodes[SDpairID[1]], "Hop")[0]
-
-            requestsID[i].append(SDpairID)
-
-    
-    for i in range(ttime):
-        for algo in Algorithms:
-            requests = []
-            for SDpairID in requestsID[i]:
-                requests.append((algo.topo.nodes[SDpairID[0]], algo.topo.nodes[SDpairID[1]]))
-            result = algo.work(requests, i)
-            print("[", algo.name, "]", result.waitingTime, result.numOfTimeslot)
