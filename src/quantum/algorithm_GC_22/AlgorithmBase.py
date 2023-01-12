@@ -117,11 +117,10 @@ class PickedPath:
 
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 5, 0.05, 6)
+    # topo = Topo.generate(100, 0.9, 5, 0.05, 6)
     # neighborsOf = {}
     # neighborsOf[1] = {1:2}
     # neighborsOf[1].update({3:3})
     # neighborsOf[2] = {2:1}
-
     # print(neighborsOf[2][2])
    

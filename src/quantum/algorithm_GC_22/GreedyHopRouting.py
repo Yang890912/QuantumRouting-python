@@ -10,12 +10,12 @@ class GreedyHopRouting(AlgorithmBase):
 
     def __init__(self, topo):
         super().__init__(topo)
+        self.name = "Greedy_H"
         self.pathsSortedDynamically = []
         self.requests = []
         self.totalTime = 0
         self.totalUsedQubits = 0
         self.totalNumOfReq = 0
-        self.name = "Greedy_H"
 
     def prepare(self):
         self.totalTime = 0
@@ -156,11 +156,14 @@ class GreedyHopRouting(AlgorithmBase):
             # self.result.unfinishedRequest += 1
             remainTime += self.timeSlot - req[2]
 
+        # clear entanglement
         self.topo.clearAllEntanglements()
+
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)     
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
+        # print info
         print('[', self.name, '] waiting time:', self.result.waitingTime)
         print('[', self.name, '] idle time:', self.result.idleTime)
         print('[', self.name, '] p4 end')

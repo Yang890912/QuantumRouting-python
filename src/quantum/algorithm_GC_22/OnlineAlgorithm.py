@@ -56,25 +56,14 @@ class OnlineAlgorithm(AlgorithmBase):
                 break
             pick = candidates[-1]   # pick -> PickedPath 
 
-            # print('-----')
-            # for c in candidates:
-            #     print('[', self.name, '] Path:', [x.id for x in c.path])
-            #     print('[', self.name, '] EXT:', c.weight)
-            #     print('[', self.name, '] width:', c.width)
-            
-            # print('[', self.name, '] pick: ', [x.id for x in pick.path])
-            # print('-----')
-
             if pick.weight > 0.0: 
                 self.pickAndAssignPath(pick)
             else:
                 break
 
         if self.allowRecoveryPaths:
-            print('[', self.name, '] P2Extra')
             self.P2Extra()
-            print('[', self.name, '] P2Extra end')
-        
+
         for req in self.requests:
             pick = False
             for pathWithWidth in self.majorPaths:
@@ -109,8 +98,6 @@ class OnlineAlgorithm(AlgorithmBase):
 
                 # collect edges with links 
                 for link in self.topo.links:
-                    # if link.n2.id < link.n1.id:
-                    #     link.n1, link.n2 = link.n2, link.n1
                     if not link.assigned and link.n1 not in failNodes and link.n2 not in failNodes:
                         if not edges.__contains__((link.n1, link.n2)):
                             edges[(link.n1, link.n2)] = []
@@ -268,12 +255,6 @@ class OnlineAlgorithm(AlgorithmBase):
                     n2 = majorPath[i2]
                     broken = True
                     for link in n1.links:
-                    #     if link.contains(n2) and link.assigned and link.notSwapped() and link.entangled:
-                    #         broken = False
-                    #         break
-                    # if broken:
-                    #     brokenEdges.append((i1, i2))
-
                         if link.contains(n2) and link.assigned and link.notSwapped() and not link.entangled:
                             brokenEdges.append((i1, i2))
 
@@ -290,15 +271,11 @@ class OnlineAlgorithm(AlgorithmBase):
                         if (j, j+1) in brokenEdges:
                             edgeToRps[(j, j+1)].append(tuple(rp))
                             rpToEdges[tuple(rp)].append((j, j+1))
-                        # elif (j+1, j) in brokenEdges:
-                        #     edgeToRps[(j+1, j)].append(tuple(rp))
-                        #     rpToEdges[tuple(rp)].append((j+1, j))
 
                 realRepairedEdges = set()
                 realPickedRps= set()
 
                 # try to cover the broken edges
-                # 掃描每個斷掉的 edge
                 for brokenEdge in brokenEdges:
                     # if the broken edge is repaired, go to repair the next broken edge
                     if brokenEdge in realRepairedEdges: 
@@ -434,14 +411,16 @@ class OnlineAlgorithm(AlgorithmBase):
 
         remainTime = 0
         for req in self.requests:
-            # self.result.unfinishedRequest += 1
             remainTime += self.timeSlot - req[2]
 
+        # clear entanglement
         self.topo.clearAllEntanglements()
+
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)   
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
+        # print info
         print('[', self.name, '] waiting time:', self.result.waitingTime)
         print('[', self.name, '] idle time:', self.result.idleTime)
 
@@ -449,15 +428,15 @@ class OnlineAlgorithm(AlgorithmBase):
 
 if __name__ == '__main__':
 
-    topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 15)
-    s = OnlineAlgorithm(topo)
+    # topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 15)
+    # s = OnlineAlgorithm(topo)
 
-    for i in range(0, 200):
-        if i < 10:
-            a = sample(topo.nodes, 2)
-            s.work([(a[0],a[1])], i)
-        else:
-            s.work([], i)
+    # for i in range(0, 200):
+    #     if i < 10:
+    #         a = sample(topo.nodes, 2)
+    #         s.work([(a[0],a[1])], i)
+    #     else:
+    #         s.work([], i)
 
     
     

@@ -56,15 +56,6 @@ class FER(AlgorithmBase):
                 break
             pick = candidates[-1]   # pick -> PickedPath 
 
-            print('-----')
-            for c in candidates:
-                print('[', self.name, '] Path:', [x.id for x in c.path])
-                print('[', self.name, '] EXT:', c.weight)
-                print('[', self.name, '] width:', c.width)
-            
-            print('[', self.name, '] pick: ', [x.id for x in pick.path])
-            print('-----')
-
             if pick.weight > 0.0: 
                 self.pickAndAssignPath(pick)
             else:
@@ -208,8 +199,7 @@ class FER(AlgorithmBase):
             oldNumOfPairs = len(self.topo.getEstablishedEntanglements(majorPath[0], majorPath[-1]))
 
             # for w-width major path, treat it as w different paths
-            for w in range(1, width + 1):
-                
+            for w in range(1, width + 1):       
                 acc = majorPath
                 nodes = []
                 prevLinks = []
@@ -256,14 +246,16 @@ class FER(AlgorithmBase):
         
         remainTime = 0
         for req in self.requests:
-            # self.result.unfinishedRequest += 1
             remainTime += self.timeSlot - req[2]
 
+        # clear entanglement
         self.topo.clearAllEntanglements()
+
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)   
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
+        # print info
         print('[', self.name, '] waiting time:', self.result.waitingTime)
         print('[', self.name, '] idle time:', self.result.idleTime)
 
