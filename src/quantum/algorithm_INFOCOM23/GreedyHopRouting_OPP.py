@@ -1,4 +1,5 @@
 import sys
+from string import Template
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase, Request, Path
 from topo.Topo import Topo 
@@ -141,7 +142,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         # Delete the finished request
         for req in finished:
             if req in self.requests:
-                print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
+                # print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
                 self.totalTime += self.timeSlot - req.time
                 if req.broken:
                     self.totalNumOfBrokenReq += 1
@@ -247,7 +248,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 break
         # while end
       
-        print('[', self.name, '] P2 End')
+        print(Template("[ $t ] P2 End").substitute(t=self.name))
     
     def p4(self):
      
@@ -297,7 +298,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                         link.lifetime = 0
 
         """             
-            Recode experiment  
+            Record experiment 
         """  
         # Calculate the idle time for all requests
         for req in self.requests:
@@ -306,7 +307,6 @@ class GreedyHopRouting_OPP(AlgorithmBase):
 
         # Calculate the remaining time for unfinished SD-pairs
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
         for remainReq in self.requests:
             remainTime += self.timeSlot - remainReq.time
 
@@ -315,10 +315,11 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
-        print('[', self.name, '] Waiting Time:', self.result.waitingTime)
-        print('[', self.name, '] Idle Time:', self.result.idleTime)
-        print('[', self.name, '] Broken Requests:', self.totalNumOfBrokenReq)
-        print('[', self.name, '] P4 End')
+        print(Template("[ $t ] Remain Requests: ${a}").substitute(t=self.name, a=len(self.requests)))
+        print(Template("[ $t ] Waiting Time: ${a}").substitute(t=self.name, a=self.result.waitingTime))
+        print(Template("[ $t ] Idle Time: ${a}").substitute(t=self.name, a=self.result.idleTime))
+        print(Template("[ $t ] Broken Requests: ${a}").substitute(t=self.name, a=self.totalNumOfBrokenReq))
+        print(Template("[ $t ] P4 End").substitute(t=self.name))
 
         return self.result
         

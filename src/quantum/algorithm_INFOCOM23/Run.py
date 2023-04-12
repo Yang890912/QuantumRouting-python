@@ -272,6 +272,10 @@ if __name__ == '__main__':
 
     exit(0)
 
+    """
+    Calculate the number of remaining requests at every time slot
+
+    """
     # Write remainRequestPerRound
     results = Run(numOfRequestPerRound=50, rtime=1) # algo1Result algo2Result ...
     for result in results:

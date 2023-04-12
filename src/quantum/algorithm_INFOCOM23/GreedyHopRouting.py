@@ -1,4 +1,5 @@
 import sys
+from string import Template
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase, Request, Path
 from topo.Topo import Topo 
@@ -19,6 +20,9 @@ class GreedyHopRouting(AlgorithmBase):
         self.requests.clear()
 
     def swapped(self, path, links):
+        """
+            swapped
+        """
         # Calculate the continuous all succeed links 
         for n in range(1, len(path)-1):
             prevLink = links[n-1]
@@ -52,7 +56,9 @@ class GreedyHopRouting(AlgorithmBase):
                 continue
     
     def trySwapped(self):
-        # Swapped 
+        """
+            try swapped
+        """
         finished = []
         for req in self.requests:
             paths = req.paths
@@ -97,8 +103,9 @@ class GreedyHopRouting(AlgorithmBase):
                     link.clearEntanglement()
     
     def p2(self):
-        # self.pathsSortedDynamically.clear()
-
+        """
+            P2
+        """
         # Pre-prepare and initialize
         for req in self.srcDstPairs:
             (src, dst) = req
@@ -189,10 +196,12 @@ class GreedyHopRouting(AlgorithmBase):
                 if not found:
                     break
        
-        print('[', self.name, '] P2 End')
+        print(Template("[ $t ] P2 End").substitute(t=self.name))
     
     def p4(self):
-       
+        """
+            P4
+        """
         # Update links' lifetime       
         for req in self.requests:
             paths = req.paths
@@ -212,7 +221,7 @@ class GreedyHopRouting(AlgorithmBase):
                         link.lifetime = 0
 
         """             
-            Recode experiment    
+            Record experiment     
         """    
         # Calculate the idle time for all requests
         for req in self.requests:
@@ -221,19 +230,17 @@ class GreedyHopRouting(AlgorithmBase):
 
         # Calculate the remaining time for unfinished SD-pairs
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
         for remainReq in self.requests:
             remainTime += self.timeSlot - remainReq.time
-
 
         # self.topo.clearAllEntanglements()
         self.result.remainRequestPerRound.append(len(self.requests)/self.totalNumOfReq)     
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
-        print('[', self.name, '] Waiting Time:', self.result.waitingTime)
-        # print('[', self.name, '] Idle Time:', self.result.idleTime)
-        print('[', self.name, '] P4 End')
+        print(Template("[ $t ] Remain Requests: ${a}").substitute(t=self.name, a=len(self.requests)))
+        print(Template("[ $t ] Waiting Time: ${a}").substitute(t=self.name, a=self.result.waitingTime))
+        print(Template("[ $t ] P4 End").substitute(t=self.name))
 
         return self.result
         

@@ -1,3 +1,10 @@
+"""
+FOR IEEE INFOCOM 2023 (GLOBECOM 2023)
+
+Socially-aware Opportunistic Routing with Path
+Segment Selection in Quantum Networks
+
+"""
 from random import sample
 from string import Template
 import sys
@@ -16,7 +23,6 @@ class SAGE(AlgorithmBase):
         self.requests = []         
         self.allowIntermediateFindPath = allowIntermediateFindPath
         self.mark = {}
-
         self.totalTime = 0
         self.totalUsedQubits = 0
 
@@ -518,7 +524,7 @@ class SAGE(AlgorithmBase):
                             link.lifetime = 0
 
         """             
-            Recode experiment   
+            Record experiment   
         """  
         # Calculate the idle time
         for req in self.requests:

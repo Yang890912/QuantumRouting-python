@@ -276,7 +276,7 @@ class QCAST(AlgorithmBase):
                         link.lifetime = 0
 
         """             
-            Recode experiment   
+            Record experiment   
         """  
         # Calculate the idle time for all requests
         for req in self.requests:
