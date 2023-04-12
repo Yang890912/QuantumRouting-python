@@ -26,7 +26,7 @@ class Node:
         """
         Attampt swapping on node
 
-        :return: whether swapping success
+        :return: True if swapping success
         :rtype: `bool`
         :param l1: link 1 on node attampts swapping
         :type l1: `Link`

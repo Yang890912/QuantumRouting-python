@@ -15,7 +15,6 @@ from QCAST_SOAR import QCAST_SOAR
 from REPS import REPS
 from REPS_OPP import REPS_OPP
 from REPS_SOAR import REPS_SOAR
-
 from topo.Topo import Topo
 from topo.Node import Node
 from topo.Link import Link
@@ -34,11 +33,9 @@ def runThread(algo, requests, algoIndex, ttime, pid, resultDict):
     resultDict[pid] = result
 
 
-
-def Run(numOfRequestPerRound = 5, numOfNode = None, L = None, q = None, alpha = None, SocialNetworkDensity = None, rtime = 10, topo = None, FixedRequests = None, k = None):
-
+def Run(numOfRequestPerRound=5, numOfNode=None, L=None, q=None, alpha=None, SocialNetworkDensity=None, rtime=10, topo=None, FixedRequests=None, k=None):
     if topo == None:
-        topo = Topo.generate(numOfNode, q, k, alpha, 6, SocialNetworkDensity, L)
+        topo = Topo.generate(numOfNode, q, alpha, 6, SocialNetworkDensity, L, k)
     else:
         if q != None:
             topo.setQ(q)
@@ -51,7 +48,7 @@ def Run(numOfRequestPerRound = 5, numOfNode = None, L = None, q = None, alpha = 
         if k != None:
             topo.k = k
 
-    # make copy
+    # Make copy
     algorithms = []
     algorithms.append(MyAlgorithm(copy.deepcopy(topo)))
     # algorithms.append(test2(copy.deepcopy(topo)))
@@ -66,13 +63,16 @@ def Run(numOfRequestPerRound = 5, numOfNode = None, L = None, q = None, alpha = 
     algorithms.append(REPS_SOPP(copy.deepcopy(topo)))
 
     times = 10
-    results = [[] for _ in range(len(algorithms))]
     ttime = 200
-
+    results = [[] for _ in range(len(algorithms))]
     resultDicts = [multiprocessing.Manager().dict() for _ in algorithms]
     jobs = []
-
     pid = 0
+
+    """
+    If no FixedRequests, generating the requests at every rtime
+
+    """
     for _ in range(times):
         ids = {i : [] for i in range(ttime)}
         if FixedRequests != None:
@@ -94,16 +94,16 @@ def Run(numOfRequestPerRound = 5, numOfNode = None, L = None, q = None, alpha = 
                     ids[i].append(SDpairID)
         
         for algoIndex in range(len(algorithms)):
-            print("process copy copy ...", pid)
+            print("Process copy copy ...", pid)
             algo = copy.deepcopy(algorithms[algoIndex])
-            print("process copied", pid)
+            print("Process copied", pid)
             requests = {i : [] for i in range(ttime)}
             for i in range(rtime):
                 for (src, dst) in ids[i]:
                     requests[i].append((algo.topo.nodes[src], algo.topo.nodes[dst]))
             
             pid += 1
-            job = multiprocessing.Process(target = runThread, args = (algo, requests, algoIndex, ttime, pid, resultDicts[algoIndex]))
+            job = multiprocessing.Process(target=runThread, args=(algo, requests, algoIndex, ttime, pid, resultDicts[algoIndex]))
             jobs.append(job)
 
     for job in jobs:
@@ -125,21 +125,34 @@ def Run(numOfRequestPerRound = 5, numOfNode = None, L = None, q = None, alpha = 
     
 
 if __name__ == '__main__':
-    print("start Run and Generate data.txt")
+    print("Start Run and generate data.txt")
     targetFilePath = "../../plot/data/"
     temp = AlgorithmResult()
     Ylabels = temp.Ylabels # Ylabels = ["algorithmRuntime", "waitingTime", "idleTime", "usedQubits", "temporaryRatio"]
     
+    """
+    Params for experiment
+
+    :algorithmNames: name of algorithms
+    :numOfRequestPerRound: number of requests per time slot
+    :totalRequest: number of total requests
+    :numOfNodes: number of nodes
+    :L: lifetime for qubits 
+    :k: least number of successful links to go swapping
+    :q: probability of swapping 
+    :alpha: alpha
+    :SocialNetworkDensity: density of social networks
+    """
     algorithmNames = ["SAGE", "Greedy", "QCAST", "REPS"]
     numOfRequestPerRound = [1, 2, 3, 4, 5]
     totalRequest = [10, 20, 30, 40, 50]
     numOfNodes = [50, 100, 150, 200]
     # numOfNodes = [10, 20, 30, 40, 50]
-    L = [1, 2, 3, 4, 5]
-    k = [1, 2, 3, 4, 5]
     q = [0.6, 0.7, 0.8, 0.9, 1]
     alpha = [0.000, 0.0002, 0.0004, 0.0006, 0.0008, 0.001]
     SocialNetworkDensity = [0.25, 0.5, 0.75, 1]
+    L = [1, 2, 3, 4, 5]
+    k = [1, 2, 3, 4, 5]
     # mapSize = [(1, 2), (100, 100), (50, 200), (10, 1000)]
 
     # Xlabels = ["#RequestPerRound", "totalRequest", "SocialNetworkDensity", "L", "swapProbability", "alpha", "k", "#nodes"]
@@ -147,20 +160,27 @@ if __name__ == '__main__':
     Xlabels = ["#RequestPerRound", "SocialNetworkDensity", "L", "swapProbability", "alpha", "k"]
     Xparameters = [numOfRequestPerRound, SocialNetworkDensity, L, q, alpha, k]
 
-    # ----- default value -------
+    """
+    Default params
+
+    """
     default_n = 100
     # default_n = 20
     default_q = 0.9
-    default_k = 1
     default_alpha = 0.0002
     default_density = 0.25
     default_L = 5
-    topo = Topo.generate(default_n, default_q, default_k, default_alpha, 6, default_density, default_L)
-    # ---------------------------
+    default_k = 1
+    topo = Topo.generate(default_n, default_q, default_alpha, 6, default_density, default_L, default_k)
+    
+    """
+    Generate requests with high hop for FixedRequests
+
+    """
     ttime = 200
     rtime = 10
-
     FixedRequestsID = {i : [] for i in range(ttime)}
+
     for i in range(rtime):
         usedSDpair = set()
         for _ in range(5): # rpr
@@ -175,7 +195,11 @@ if __name__ == '__main__':
                 distance = topo.shortestPath(topo.nodes[SDpairID[0]], topo.nodes[SDpairID[1]], "Hop")[0]
             usedSDpair.add(SDpairID)
             FixedRequestsID[i].append(SDpairID)
-               
+
+    """
+    Run experiment on different X labels
+
+    """    
     skipXlabel = [1,2]
     for XlabelIndex in range(len(Xlabels)):
         Xlabel = Xlabels[XlabelIndex]
@@ -184,27 +208,27 @@ if __name__ == '__main__':
             continue
         for Xparam in Xparameters[XlabelIndex]:
             
-            # check schedule
+            # Check schedule
             statusFile = open("status.txt", "w")
             print(Xlabel + str(Xparam), file = statusFile)
             statusFile.flush()
             statusFile.close()
-            # ------
-            if XlabelIndex == 0: # #RequestPerRound
+
+            if XlabelIndex == 0:    # RequestPerRound
                 result = Run(numOfRequestPerRound = Xparam, topo = copy.deepcopy(topo))
-            # if XlabelIndex == 1: # totalRequest
+            # if XlabelIndex == 1:  # totalRequest
             #     result = Run(numOfRequestPerRound = Xparam, rtime = 1, topo = copy.deepcopy(topo))
-            # if XlabelIndex == 1: # SocialNetworkDensity
+            # if XlabelIndex == 1:  # SocialNetworkDensity
             #     result = Run(SocialNetworkDensity = Xparam, topo = copy.deepcopy(topo))
-            # if XlabelIndex == 2: # L
+            # if XlabelIndex == 2:  # L
             #     result = Run(L = Xparam, topo = copy.deepcopy(topo))
-            if XlabelIndex == 3: # swapProbability
+            if XlabelIndex == 3:    # swapProbability
                 result = Run(q = Xparam, topo = copy.deepcopy(topo))
-            if XlabelIndex == 4: # alpha
+            if XlabelIndex == 4:    # alpha
                 result = Run(alpha = Xparam, topo = copy.deepcopy(topo))
-            # if XlabelIndex == 5: # k
+            # if XlabelIndex == 5:  # k
             #     result = Run(k = Xparam, topo = copy.deepcopy(topo))
-            # if XlabelIndex == 7: # #nodes
+            # if XlabelIndex == 7:  # nodes
             #     result = Run(numOfNode = Xparam, L = default_L, q = default_q, alpha = default_alpha, SocialNetworkDensity = default_density, k = default_k)
 
             Ydata.append(result)
@@ -225,16 +249,19 @@ if __name__ == '__main__':
         #         F.write(Xaxis + Yaxis)
         #     F.close()
         
-        # write in csv
-        for Ylabel in Ylabels: # 結果寫入檔案
+        """
+        Write results to csv
+
+        """
+        for Ylabel in Ylabels:
             filename = Xlabel + "_" + Ylabel + ".csv"
             F = open(targetFilePath + filename, "w")
-            writer = csv.writer(F) # create the csv writer
+            writer = csv.writer(F) # Create the csv writer
             
             row = []
             row.append(Xlabel + " \\ " + Ylabel)
             row.extend(algorithmNames)  
-            writer.writerow(row) # write a row to the csv file
+            writer.writerow(row) # Write a row to the csv file
             
             for i in range(len(Xparameters[XlabelIndex])):
                 row = []
@@ -245,15 +272,15 @@ if __name__ == '__main__':
 
     exit(0)
 
-    # write remainRequestPerRound
-    results = Run(numOfRequestPerRound = 50, rtime = 1) # algo1Result algo2Result ...
+    # Write remainRequestPerRound
+    results = Run(numOfRequestPerRound=50, rtime=1) # algo1Result algo2Result ...
     for result in results:
         result.remainRequestPerRound.insert(0, 1)
     
     # sampleRounds = [0, 5, 10, 15, 20, 25]
     sampleRounds = [0, 2, 4, 6, 8, 10]
 
-    # write in txt
+    # Write to txt
     # filename = "Timeslot" + "_" + "#remainRequest" + ".txt"
     # F = open(targetFilePath + filename, "w")
     # for roundIndex in sampleRounds:
@@ -263,15 +290,15 @@ if __name__ == '__main__':
     #     F.write(Xaxis + Yaxis)
     # F.close()
 
-    # write in csv
+    # Write to csv
     filename = "Timeslot" + "_" + "#remainRequest" + ".csv"
     F = open(targetFilePath + filename, "w")
-    writer = csv.writer(F) # create the csv writer
+    writer = csv.writer(F) # Create the csv writer
     
     row = []
     row.append(Xlabel + " \\ " + Ylabel)
     row.extend(algorithmNames)  
-    writer.writerow(row) # write a row to the csv file
+    writer.writerow(row) # Write a row to the csv file
 
     for roundIndex in sampleRounds:
         row = []

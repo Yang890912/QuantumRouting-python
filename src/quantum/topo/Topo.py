@@ -115,7 +115,7 @@ class Topo:
         :type degree: `int`
         :param density: for nexwork param
         :type density: `float`
-        :param L: for nexwork param
+        :param L: lifetime of qubit
         :type L: `float`
         :param k: ???
         :type k: `int`
@@ -209,7 +209,7 @@ class Topo:
         :type degree: `int`
         :param density: for nexwork param
         :type density: `float`
-        :param L: for nexwork param
+        :param L: lifetime of qubit
         :type L: `float`
         :param k: ???
         :type k: `int`
