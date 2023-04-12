@@ -296,10 +296,9 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                         link.entangled = False
                         link.lifetime = 0
 
-        #                       #                
-        #   RECORD EXPERIMENT   #
-        #                       #
-
+        """             
+            Recode experiment  
+        """  
         # Calculate the idle time for all requests
         for req in self.requests:
             if req.state == 0:

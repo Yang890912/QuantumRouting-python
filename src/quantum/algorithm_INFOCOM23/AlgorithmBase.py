@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from string import Template
 from time import process_time, sleep
 import sys
 import math
@@ -188,13 +189,21 @@ class AlgorithmBase:
             res.idleTime = self.idleTime / self.totalNumOfReq
             res.avgTemporaryCount = self.totalNumOfTemporary / self.totalNumOfReq
         
-        print("[", self.name, "]", "trusedRatioOnPath = ", res.trustedRatioOnPath)
-        print("[", self.name, "]", "avgTimeSlotsForSecure = ", res.avgTimeSlotsForSecure)
-        print("[", self.name, "]", "secureThroughput = ", res.secureThroughput)
-        print("[", self.name, "]", "throuhgput = ", res.throuhgput)
-        print("[", self.name, "]", "secureRatio = ", res.secureRatio)
-        print("[", self.name, "]", "avgTemporaryCount = ", res.avgTemporaryCount)
-    
+        s = Template("[ $t ] trusedRatioOnPath: $a \
+                      \n[ $t ] avgTimeSlotsForSecure: $b \
+                      \n[ $t ] secureThroughput: $c \
+                      \n[ $t ] throuhgput: $d \
+                      \n[ $t ] secureRatio: $e \
+                      \n[ $t ] avgTemporaryCount: $f \
+                    " )
+        print(s.substitute(t=self.name, 
+                           a=res.trustedRatioOnPath,
+                           b=res.avgTimeSlotsForSecure,
+                           c=res.secureThroughput,
+                           d=res.throuhgput,
+                           e=res.secureRatio,
+                           f=res.avgTemporaryCount))
+                           
         return res
 
     def work(self, pairs, time): 
@@ -216,7 +225,9 @@ class AlgorithmBase:
         if self.timeSlot == 0:  
             self.prepare()
 
-        # Start -> p2 -> swapped 1 -> entangled 1 -> swapped 2 -> p4 -> end
+        """
+        Start > P2 > Swapped 1 > Entangled 1 > Swapped 2 > P4 > End
+        """ 
         start = process_time()   
         self.p2()
         if self.name in self.doubleSwapped:  

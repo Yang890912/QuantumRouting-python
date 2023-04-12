@@ -1,4 +1,5 @@
 from random import sample
+from string import Template
 import sys
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase, Request, Path
@@ -79,7 +80,7 @@ class SAGE(AlgorithmBase):
                     dst = k
                     nodeRemainingQubits[k] -= 1 # temporary calculate
             
-            # not has enough resource for path
+            # Not has enough resource for path
             # if self.lackPathResource(req, path.path):
             #     continue
             
@@ -90,7 +91,7 @@ class SAGE(AlgorithmBase):
 
             path = Path()
             path.path = p
-            # establish intermediates
+            # Establish intermediates
             for n in p:
                 if n in self.topo.socialRelationship[req.src] and n != req.dst and n != req.src:
                     path.intermediates.append(n)
@@ -214,7 +215,7 @@ class SAGE(AlgorithmBase):
         return path[curr]
 
     def p2Extra(self):
-        # find multiPath from intermediate
+        # Find multiPath from intermediate
         while True:
             found = False
             # Allocate resources for requests
@@ -259,8 +260,8 @@ class SAGE(AlgorithmBase):
             # for end
             if not found:
                 break
-        # While end
-        print('[', self.name, '] P2 Extra End')
+        # while end
+        print(Template("[ $t ] P2 Extra End").substitute(t=self.name))
 
     def BFS(self, src, dst):
         queue = []
@@ -353,7 +354,11 @@ class SAGE(AlgorithmBase):
         # Delete the finished request
         for req in finished:
             if req in self.requests:
-                print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
+                print(Template("[ $t ] Finished Requests: ${a}, ${b}, ${c}").substitute(t=self.name,
+                a=req.src.id,
+                b=req.dst.id,
+                c=req.time))
+                
                 self.totalTime += self.timeSlot - req.time
                 if req.broken:
                     self.totalNumOfBrokenReq += 1
@@ -385,10 +390,11 @@ class SAGE(AlgorithmBase):
                 intermediates = path.intermediates
 
                 arrive = self.swapped(p, links, intermediate, intermediates)
-
-    # p1, p2    
+ 
     def p2(self):
-
+        """             
+            P1 & P2 
+        """  
         # Decide path for SDpairs
         self.decideSegmentation()
 
@@ -442,10 +448,12 @@ class SAGE(AlgorithmBase):
         # Find multipath in residual graph  
         self.p2Extra()
      
-        print('[', self.name, '] P2 End')
+        print(Template("[ $t ] P2 End").substitute(t=self.name))
 
-    # p4, p5
     def p4(self):
+        """             
+            P4 & P5 
+        """  
         self.tryForward()
 
         # Update storage time
@@ -509,10 +517,9 @@ class SAGE(AlgorithmBase):
                             link.entangled = False
                             link.lifetime = 0
 
-        #                       #                
-        #   RECORD EXPERIMENT   #
-        #                       #
-
+        """             
+            Recode experiment   
+        """  
         # Calculate the idle time
         for req in self.requests:
             if req.state == 0:
@@ -521,7 +528,12 @@ class SAGE(AlgorithmBase):
         # Calculate the remain time
         remainTime = 0
         for remainReq in self.requests:
-            print('[', self.name, '] Remain Requests:', remainReq.src.id, remainReq.dst.id, remainReq.time, remainReq.state)
+            print(Template("[ $t ] Remain Requests: ${a}, ${b}, ${c}, ${d}").substitute(t=self.name, 
+            a=remainReq.src.id, 
+            b=remainReq.dst.id, 
+            c=remainReq.time, 
+            d=remainReq.state))
+
             remainTime += self.timeSlot - remainReq.time
             # print(remainReq.intermediate.id)
             paths = remainReq.paths
@@ -534,11 +546,7 @@ class SAGE(AlgorithmBase):
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
-        print('[', self.name, '] Waiting Time:', self.result.waitingTime)
-        # print('[', self.name, '] Idle Time:', self.result.idleTime)
-        # print('[', self.name, '] Broken Requests:', self.totalNumOfBrokenReq)
-        print('[', self.name, '] P5 End')
-
+        print(Template("[ $t ] Waiting Time: $w \n[ $t ] P5 End").substitute(t=self.name, w=self.result.waitingTime))
 
         return self.result
     
