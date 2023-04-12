@@ -31,7 +31,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
 
     def __init__(self, topo):
         super().__init__(topo)
-        self.name = "Greedy_OPP"
+        self.name = 'Greedy_OPP'
         self.requests = []
 
         self.totalTime = 0

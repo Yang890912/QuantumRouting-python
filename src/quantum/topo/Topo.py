@@ -12,9 +12,21 @@ from random import sample
 
 class TopoConnectionChecker:
     def setTopo(self, topo):
+        """
+        Set TopoConnectionChecker
+
+        :param topo: the topology
+        :type topo: `Topo`
+        """
         self.topo = topo
 
     def checkConnected(self):
+        """
+        Return Topo whether connect
+
+        :return: Topo whether connect
+        :rtype topo: `bool`
+        """
         self.visited = {node : False for node in self.topo.nodes}
         self.DFS(self.topo.nodes[0])
         for node in self.topo.nodes:
@@ -31,6 +43,12 @@ class TopoConnectionChecker:
 
 class socialGenerator:
     def setTopo(self, topo):
+        """
+        Set social nerwork
+
+        :param topo: the topology
+        :type topo: `Topo`
+        """
         self.topo = topo
         self.topo.socialRelationship = {node: [] for node in self.topo.nodes} 
 
@@ -57,7 +75,14 @@ class socialGenerator:
                     # print('[system] Construct social relationship: node 1 ->', n1.id, ', node 2 ->', n2.id)
 
     def genSocialNetwork(self, userNum, density):
-        # n * n
+        """
+        Generate social network
+
+        :param userNum: number of users
+        :type userNum: `int`
+        :param density: density of network
+        :type density: `float`
+        """
         community1 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 2, 2, 2, 2, 3, 2, 2, 2, 3, 2]  # 0.25
         community2 = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1]  # 0.50
         community3 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]  # 0.75
@@ -77,23 +102,38 @@ class socialGenerator:
                     self.topo.SN[j].append(i)
 
 class Topo:
+    def __init__(self, G, q, a, degree, density, L):
+        """
+        Initialize Topo class
 
-    def __init__(self, G, q, k, a, degree, density, L):
+        :param G: the topology
+        :type G: `networkx.waxman_graph`
+        :param q: probability of swapping
+        :type q: `float`
+        :param a: alpha
+        :type a: `float`
+        :param degree: the least degree 
+        :type degree: `int`
+        :param density: for nexwork param
+        :type density: `float`
+        :param L: for nexwork param
+        :type L: `float`
+        """
         _nodes, _edges, _positions = G.nodes(), list(G.edges()), nx.get_node_attributes(G, 'pos')
         self.nodes = []
         self.links = []
-        self.edges = [] # (Node, Node)
+        self.edges = [] 
         self.q = q
         self.alpha = a
-        self.k = k
         self.L = L
         self.density = density
         self.sentinel = Node(-1, (-1.0, -1.0), -1, self)
-
+        #---
         self.socialRelationship = {}    # {n: []}
         self.shortestPathTable = {}     # {(src, dst): (path, weight, p)}
         self.expectTable = {}           # {(path1, path2) : expectRound}
         self.SN = {}
+        #---
 
         # Construct neighbor table by int type
         _neighbors = {_node: [] for _node in _nodes}
@@ -151,27 +191,39 @@ class Topo:
         
         print('Average Length:', length / times)
 
-    def generate(n, q, k, a, degree, density, L):
+    def generate(n, q, a, degree, density, L):
+        """
+        Generate Topo object
+
+        :return: the topology
+        :rtype: `Topo`
+        :param n: number of nodes
+        :type n: `int`
+        :param q: probability of swapping
+        :type q: `float`
+        :param a: alpha
+        :type a: `float`
+        :param degree: the least degree 
+        :type degree: `int`
+        :param density: for nexwork param
+        :type density: `float`
+        :param L: for nexwork param
+        :type L: `float`
+        """
         checker = TopoConnectionChecker()
         while True:
             G = nx.waxman_graph(n, beta=0.85, alpha=0.02, domain=(0, 0, 1, 2))
-            topo = Topo(G, q, k, a, degree, density, L)
+            topo = Topo(G, q, a, degree, density, L)
             checker.setTopo(topo)
             if checker.checkConnected():
                 break
             else:
-                print("topo is not connected", file = sys.stderr)
+                print("Topo is not connected", file = sys.stderr)
 
-        # establish social table
+        # Generator Social network
         generator = socialGenerator()
         generator.setTopo(topo)
         generator.genSocialRelationship()
-
-        # establish Path table
-        # topo.genShortestPathTable('New')
-
-        # establish expect table
-        # topo.genExpectTable()
 
         return topo
 
@@ -181,7 +233,17 @@ class Topo:
     def weight(self, p):
         return -1 * math.log(self.trans(p)) 
 
-    def distance(self, pos1: tuple, pos2: tuple): # para1 type: tuple, para2 type: tuple
+    def distance(self, pos1, pos2): 
+        """
+        Calculate the distance between two nodes
+
+        :return: the distance between two nodes
+        :rtype: `float`
+        :param pos1: position of node 1
+        :type pos1: `tuple`
+        :param pos2: position of node 2
+        :type pos2: `tuple`
+        """
         d = 0
         for a, b in zip(pos1, pos2):
             d += (a-b) ** 2
@@ -209,19 +271,33 @@ class Topo:
 
         return curMinWidth
         
-    def shortestPath(self, src, dst, Type, edges = None):
+    def shortestPath(self, src, dst, Type, edges=None):
+        """
+        Route the shortest path for SD by Dijkstra Algorithm
+
+        :return: the shortest path for SD
+        :rtype: `list`
+        :param src: src
+        :type src: `Node`
+        :param dst: dst
+        :type dst: `Node`
+        :param Type: type of link weight
+        :type Type: `str`
+        :param edges: ???
+        :type edges: `list`
+        """
         # Construct state metric (weight) table for edges
         fStateMetric = {}   # {edge: fstate}
         fStateMetric.clear()
         if edges != None:
             fStateMetric = {edge : self.distance(edge[0].loc, edge[1].loc) for edge in edges} 
-        elif Type == 'Hop' and edges == None: # hop
+        elif Type == 'Hop' and edges == None:   # Hop
             fStateMetric = {edge : 1 for edge in self.edges}
-        elif Type == "New" and edges == None: # new
+        elif Type == "New" and edges == None:   # New
             fStateMetric = {edge : self.weight(math.exp(-self.alpha * self.distance(edge[0].loc, edge[1].loc))) for edge in self.edges}
-        elif Type == "Test" and edges == None:  # test
+        elif Type == "Test" and edges == None:  # Test
             fStateMetric = {edge : -(math.log(self.q)) + self.weight(math.exp(-self.alpha * self.distance(edge[0].loc, edge[1].loc))) for edge in self.edges}
-        else:   # distance
+        else:   # Distance
             fStateMetric = {edge : self.distance(edge[0].loc, edge[1].loc) for edge in self.edges}
 
         # Construct neightor & weight table for nodes
@@ -237,8 +313,8 @@ class Topo:
                 neighborsOf[n1][n2] = fStateMetric[edge]
                 neighborsOf[n2][n1] = fStateMetric[edge]
 
-        D = {node.id : sys.float_info.max for node in self.nodes} # {int: [int, int, ...], ...}
-        q = [] # [(weight, curr, prev)]
+        D = {node.id : sys.float_info.max for node in self.nodes}   # {int: [int, int, ...], ...}
+        q = []  # [(weight, curr, prev)]
 
         D[src.id] = 0.0
         prevFromSrc = {}   # {cur: prev}
@@ -273,12 +349,10 @@ class Topo:
                 if oldDist > newDist:
                     D[neighbor.id] = newDist
                     q.append((D[neighbor.id], neighbor, w))
-                    
-
+        
         return (sys.float_info.max, [])
         
     def hopsAway(self, src, dst, Type):
-        # print('enter hopsAway')
         path = self.shortestPath(src, dst, Type)
         return len(path[1]) - 1
 
@@ -307,18 +381,37 @@ class Topo:
                         self.expectTable[((n1, k), (k, n2))] = self.expectedRound(self.shortestPathTable[(n1, k)][2], self.shortestPathTable[(k, n2)][2])
 
     def expectedRound(self, p1, p2):
-        # 大數法則
-        times = 145 # 0
+        """
+        Law of large numbers
+
+        :return: average number of rounds
+        :rtype: `float`
+        :param p1: probability 1
+        :type p1: `float`
+        :param p2: probability 2
+        :type p2: `float`
+        """
+        times = 145 
         roundSum = 0
 
         for _ in range(times):
             roundSum += self.Round(p1, p2)
 
-        # print('expect:', roundSum / times)
         return roundSum / times
     
     def Round(self, p1, p2):
-        state = 0 # 0 1 2
+        """
+        Run the samples
+
+        :return: number of rounds
+        :rtype: `int`
+        :param p1: probability 1
+        :type p1: `float`
+        :param p2: probability 2
+        :type p2: `float`
+        """
+        # State with 0, 1, 2
+        state = 0 
         maxRound = 1000
         currentRound = 0
         currentMaintain = 0
@@ -340,6 +433,7 @@ class Topo:
                     currentMaintain = 0
                 elif random.random() <= p2:
                     state = 2
+
         return currentRound
 
     def Pr(self, path):
@@ -353,7 +447,19 @@ class Topo:
    
         return P * (self.q**(len(path) - 2))
 
-    def e(self, path: list, width: int, oldP: list):
+    def e(self, path, width, oldP):
+        """
+        Calculate e for QCAST Algorithm
+
+        :return: e
+        :rtype: `float`
+        :param path: the path
+        :type path: `list`
+        :param width: path width
+        :type width: `int`
+        :param oldP: old numbers
+        :type oldP: `list`
+        """
         s = len(path) - 1
         P = [0.0 for _ in range(0,width+1)]
         p = [0 for _ in range(0, s+1)]  # Entanglement percentage
@@ -391,9 +497,9 @@ class Topo:
         
         return acc * math.pow(self.q, s-1)
     
-    def getEstablishedEntanglements(self, n1: Node, n2: Node):
+    def getEstablishedEntanglements(self, n1, n2):
         stack = []
-        stack.append((None, n1)) #Pair[Link, Node]
+        stack.append((None, n1)) 
         result = []
 
         while stack:
@@ -489,12 +595,9 @@ class Topo:
 
     def setL(self, L):
         self.L = L
-        # self.genShortestPathTable('New')
-        # self.genExpectTable()
-    
+
     def setDensity(self, density):
         self.density = density
         generator = socialGenerator()
         generator.setTopo(self)
         generator.genSocialRelationship()
-        # self.genExpectTable()

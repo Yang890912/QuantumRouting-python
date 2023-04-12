@@ -25,7 +25,7 @@ class AlgorithmResult:
         self.totalLenOfPath = 0
         self.totalTemporaryCount = 0
         self.totalNumOfIntermediate = 0
-        # ----
+        # ---
         # self.Ylabels = ["algorithmRuntime", "waitingTime", "idleTime", "usedQubits", "temporaryRatio"]
         self.Ylabels = ["algorithmRuntime", "waitingTime", "idletime", "numOfTimeOut", "secureThroughput", "avgTimeSlotsForSecure", "throuhgput", "trustedRatioOnPath", "secureRatio", "avgTemporaryCount"]
         self.remainRequestPerRound = []
@@ -72,7 +72,6 @@ class AlgorithmResult:
             # for i in range(ttime):
             #     AvgResult.remainRequestPerRound[i] += result.remainRequestPerRound[i]
 
-
         num = len(results)
         AvgResult.algorithmRuntime /= num
         AvgResult.waitingTime /= num
@@ -101,15 +100,15 @@ class AlgorithmBase:
         self.timeSlot = 0
         self.result = AlgorithmResult()
         self.canEntangled = True
-        self.totalNumOfReq = 0  # total number of requests
-        self.totalNumOfFinishedReq = 0 # total number of finished requests
-        self.totalNumOfBrokenReq = 0    # total number of peeping requests
-        self.totalNumOfSecureReq = 0    # total number of secure requests
-        self.totalNumOfIntermediate = 0 # total number of intermediates
-        self.totalNumOfNormalNodeOnPath = 0 # total number of normal nodes
-        self.totalNumOfTemporary = 0 # total number of temporary counts
-        self.idleTime = 0   # total idle time
-        self.numOfTimeOut = 0   # total timeout
+        self.totalNumOfReq = 0  # Total number of requests
+        self.totalNumOfFinishedReq = 0  # Total number of finished requests
+        self.totalNumOfBrokenReq = 0    # Total number of peeping requests
+        self.totalNumOfSecureReq = 0    # Total number of secure requests
+        self.totalNumOfIntermediate = 0 # Total number of intermediates
+        self.totalNumOfNormalNodeOnPath = 0 # Total number of normal nodes
+        self.totalNumOfTemporary = 0    # Total number of temporary counts
+        self.idleTime = 0   # Total idle time
+        self.numOfTimeOut = 0   # Total timeout
         self.doubleEntangled = ["SAGE", "QCAST_SOAR", "Greedy_SOAR", "REPS_SOAR"]
         self.doubleSwapped = ["SAGE", "QCAST_SOAR", "Greedy_SOAR", "REPS_SOAR", "Greedy", "QCAST", "REPS"]
         
@@ -160,39 +159,41 @@ class AlgorithmBase:
     
         return res
 
-    def work(self, pairs: list, time): 
+    def work(self, pairs, time): 
+        """
+        Algotithm Running Framework
 
-        self.timeSlot = time    # Update current time
-        self.srcDstPairs.extend(pairs) # Append new SDpairs
+        :return: result
+        :rtype: `AlgorithmResult`
+        :param pairs: SD pairs list
+        :type pairs: `list[(Node, Node)]`
+        :param time: the current time
+        :type time: `int`
+        """
+        # Update current time and append new SD pairs
+        self.timeSlot = time    
+        self.srcDstPairs.extend(pairs) 
 
-        if self.timeSlot == 0:  # pre-prepare
+        # Pre-prepare
+        if self.timeSlot == 0:  
             self.prepare()
 
-        start = process_time()   # start
-
-        self.p2()   # p2
-        
-        if self.name in self.doubleSwapped:  # swapped 1
+        # Start -> p2 -> swapped 1 -> entangled 1 -> swapped 2 -> p4 -> end
+        start = process_time()   
+        self.p2()
+        if self.name in self.doubleSwapped:  
             self.trySwapped()
-
-        if self.canEntangled:   # entangled 1
-            self.tryEntanglement()
-        
-        self.trySwapped()   # swapped 2
-
-        # if self.canEntangled and self.name in self.doubleEntangled:   # entangled 2
-        #     self.tryEntanglement()
-
-        res = self.p4() # p4 
-
-        end = process_time()    # end 
-
+        if self.canEntangled:   
+            self.tryEntanglement()  
+        self.trySwapped()
+        res = self.p4() 
+        end = process_time()    
         self.srcDstPairs.clear()
 
         res.totalRuntime += (end - start)
         res.algorithmRuntime = res.totalRuntime / res.numOfTimeslot
-
-        res = self.modifyResult(res)    # modify recording results 
+        # Modify recording results 
+        res = self.modifyResult(res)    
 
         return res
 
@@ -207,6 +208,5 @@ class PickedPath:
         return hash((self.weight, self.width, self.path[0], self.path[-1]))
 
 if __name__ == '__main__':
-
     pass
    
