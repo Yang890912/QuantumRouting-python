@@ -1,7 +1,6 @@
 import random
 
 class Node:
-
     def __init__(self, id, loc, nQubits, topo):
         """
         Initialize Node class
@@ -47,6 +46,7 @@ class Node:
         b = random.random() <= self.q
         if b:
             self.internalLinks.append((l1, l2))
+            
         return b
 
     def assignIntermediate(self): 
@@ -59,7 +59,7 @@ class Node:
     def clearIntermediate(self):
         """
         Release a qubit on node
-        
+
         """
         self.remainingQubits += 1
         

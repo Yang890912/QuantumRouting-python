@@ -3,7 +3,6 @@ import random
 import math
 
 class Link:
-    
     def __init__(self, topo, n1, n2, s1, s2, id, l):
         """
         Initialize Link class
@@ -42,6 +41,7 @@ class Link:
             tmp = self.n2
         elif (self.n2 == n): 
             tmp = self.n1 
+
         return tmp
 
     def contains(self, n):
@@ -98,7 +98,7 @@ class Link:
     def assignQubits(self):
         """
         Assign Qubits for nods on link
-        
+
         """ 
         self.assigned = True
         self.n1.remainingQubits -= 1
@@ -155,6 +155,7 @@ class Link:
         """ 
         b = (self.assigned and self.p >= random.random()) or self.entangled
         self.entangled = b
+        
         return b
   
     def assignable(self):

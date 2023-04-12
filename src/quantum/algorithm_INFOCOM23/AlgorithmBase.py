@@ -91,8 +91,43 @@ class AlgorithmResult:
             
         return AvgResult
 
-class AlgorithmBase:
+class Request:
+    def __init__(self, src, dst, time, intermediate):
+        """
+        Initialize Request
 
+        :param src: src
+        :type src: `Node`
+        :param dst: dst
+        :type dst: `Node`
+        :param time: entering time for request
+        :type time: `int`
+        :param intermediate: old result
+        :type intermediate: `Node`
+        """
+        self.src = src
+        self.dst = dst
+        self.time = time
+        self.state = 0
+        self.storageTime = 0
+        self.broken = False 
+        self.numOfTemporary = 0
+        self.intermediate = intermediate
+        self.paths = []
+        self.CImark = False
+        self.pathlen = 0
+ 
+class Path:
+    def __init__(self):
+        """
+        Initialize Path
+
+        """
+        self.path = []
+        self.links = []
+        self.intermediates = []
+
+class AlgorithmBase:
     def __init__(self, topo):
         self.name = "Base"
         self.topo = topo
@@ -129,10 +164,14 @@ class AlgorithmBase:
             link.tryEntanglement()
     
     def modifyResult(self, res):
+        """
+        Update the result
 
-        # res.totalRuntime += (end - start)
-        # res.algorithmRuntime = res.totalRuntime / res.numOfTimeslot
-
+        :return: new result
+        :rtype: `AlgorithmResult`
+        :param res: old result
+        :type res: `AlgorithmResult`
+        """
         res.secureThroughput = self.totalNumOfSecureReq / res.numOfTimeslot
         if res.secureThroughput > 0:
             res.avgTimeSlotsForSecure = self.totalNumOfReq / res.secureThroughput
@@ -149,7 +188,6 @@ class AlgorithmBase:
             res.idleTime = self.idleTime / self.totalNumOfReq
             res.avgTemporaryCount = self.totalNumOfTemporary / self.totalNumOfReq
         
-
         print("[", self.name, "]", "trusedRatioOnPath = ", res.trustedRatioOnPath)
         print("[", self.name, "]", "avgTimeSlotsForSecure = ", res.avgTimeSlotsForSecure)
         print("[", self.name, "]", "secureThroughput = ", res.secureThroughput)

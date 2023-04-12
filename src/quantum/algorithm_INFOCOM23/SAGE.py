@@ -1,38 +1,14 @@
 from random import sample
 import sys
 sys.path.append("..")
-from AlgorithmBase import AlgorithmBase
+from AlgorithmBase import AlgorithmBase, Request, Path
 from GreedyHopRouting import GreedyHopRouting
 from GreedyHopRouting_SOAR import GreedyHopRouting_SOAR
 from GreedyHopRouting_OPP import GreedyHopRouting_OPP
 from QCAST_SOAR import QCAST_SOAR
 from topo.Topo import Topo 
 
-
-class Request:
-
-    def __init__(self, src, dst, time, intermediate):
-        self.src = src
-        self.dst = dst
-        self.time = time
-        self.state = 0
-        self.storageTime = 0
-        self.broken = False 
-        self.numOfTemporary = 0
-        self.intermediate = intermediate
-        self.paths = []
-        self.CImark = False
-        self.pathlen = 0
- 
-class Path:
-
-    def __init__(self):
-        self.path = []
-        self.links = []
-        self.intermediates = []
-
 class SAGE(AlgorithmBase):
-
     def __init__(self, topo, allowIntermediateFindPath = False):
         super().__init__(topo)
         self.name = "SAGE"
@@ -72,7 +48,7 @@ class SAGE(AlgorithmBase):
 
         # Find Path with our weight
         for req in self.requests:
-            # already has path, continue
+            # Already has path, continue
             if len(req.paths) != 0:
                 continue
             
@@ -463,14 +439,13 @@ class SAGE(AlgorithmBase):
           
             req.paths.append(path)
 
-        # find multipath in residual graph  
+        # Find multipath in residual graph  
         self.p2Extra()
      
         print('[', self.name, '] P2 End')
 
     # p4, p5
     def p4(self):
-       
         self.tryForward()
 
         # Update storage time
@@ -478,22 +453,22 @@ class SAGE(AlgorithmBase):
             if req.intermediate != req.src:
                 req.storageTime += 1
             clear = False
-            # time out
+            # Time out
             if req.storageTime > self.topo.L:
                 paths = req.paths
                 for path in paths:
-                    # clear links
+                    # Clear links
                     links = path.links
                     for link in links:
                         link.clearEntanglement()
-                    # clear intermediates
+                    # Clear intermediates
                     if not clear:
                         req.intermediate.clearIntermediate()
                         # print([x.id for x in path.path])
                         # print('clear', req.intermediate.id)
                         # print(req.intermediate.remainingQubits)
                         clear = True
-                # clear request' paths and reset
+                # Clear request' paths and reset
                 # print('reset') 
                 self.numOfTimeOut += 1        
                 req.paths.clear()
@@ -568,8 +543,7 @@ class SAGE(AlgorithmBase):
         return self.result
     
 if __name__ == '__main__':
-
-    topo = Topo.generate(30, 0.9, 1, 0.002, 6, 0.5, 15)
+    topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 1)
 
     a1 = SAGE(topo)
     a2 = GreedyHopRouting_SOAR(topo)

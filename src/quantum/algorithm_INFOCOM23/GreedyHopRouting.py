@@ -1,39 +1,16 @@
 import sys
 sys.path.append("..")
-from AlgorithmBase import AlgorithmBase
+from AlgorithmBase import AlgorithmBase, Request, Path
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
 from random import sample
 
-class Request:
-
-    def __init__(self, src, dst, time, intermediate):
-        self.src = src
-        self.dst = dst
-        self.time = time
-        self.state = 0
-        self.storageTime = 0
-        self.broken = False 
-        self.numOfTemporary = 0
-        self.intermediate = intermediate
-        self.paths = []
-        self.CImark = False
- 
-class Path:
-
-    def __init__(self):
-        self.path = []
-        self.links = []
-        self.intermediates = []
-
 class GreedyHopRouting(AlgorithmBase):
-
     def __init__(self, topo):
         super().__init__(topo)
         self.name = "Greedy"
         self.requests = []
-
         self.totalTime = 0
         self.totalUsedQubits = 0
 
@@ -262,6 +239,5 @@ class GreedyHopRouting(AlgorithmBase):
         return self.result
         
 if __name__ == '__main__':
-    
-    topo = Topo.generate(100, 0.9, 5, 0.0002, 6, 0.25, 5)
+    topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 1)
    

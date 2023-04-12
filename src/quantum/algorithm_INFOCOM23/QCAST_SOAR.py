@@ -1,6 +1,6 @@
 import sys
 sys.path.append("..")
-from AlgorithmBase import AlgorithmBase
+from AlgorithmBase import AlgorithmBase, Request, Path
 from AlgorithmBase import PickedPath
 from topo.Topo import Topo 
 from topo.Node import Node 
@@ -8,30 +8,7 @@ from topo.Link import Link
 from random import sample
 import copy
 
-class Request:
-
-    def __init__(self, src, dst, time, intermediate):
-        self.src = src
-        self.dst = dst
-        self.time = time
-        self.state = 0
-        self.storageTime = 0
-        self.broken = False 
-        self.numOfTemporary = 0
-        self.intermediate = intermediate
-        self.paths = []
-        self.CImark = False
-        self.pathlen = 0
-
-class Path:
-
-    def __init__(self):
-        self.path = []
-        self.links = []
-        self.intermediates = []
-
 class QCAST_SOAR(AlgorithmBase):
-
     def __init__(self, topo):
         super().__init__(topo)
         self.name = "QCAST_SOAR"
@@ -497,6 +474,5 @@ class QCAST_SOAR(AlgorithmBase):
         return self.result
 
 if __name__ == '__main__':
-
-    topo = Topo.generate(100, 0.9, 1, 0.002, 6, 0.5, 30)
+    topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 1)
     

@@ -2,7 +2,6 @@ import sys
 import random
 import heapq
 import math
-from queue import PriorityQueue
 from tkinter.tix import AUTO
 import networkx as nx
 from .Node import Node
@@ -102,7 +101,7 @@ class socialGenerator:
                     self.topo.SN[j].append(i)
 
 class Topo:
-    def __init__(self, G, q, a, degree, density, L):
+    def __init__(self, G, q, a, degree, density, L, k):
         """
         Initialize Topo class
 
@@ -118,6 +117,8 @@ class Topo:
         :type density: `float`
         :param L: for nexwork param
         :type L: `float`
+        :param k: ???
+        :type k: `int`
         """
         _nodes, _edges, _positions = G.nodes(), list(G.edges()), nx.get_node_attributes(G, 'pos')
         self.nodes = []
@@ -125,8 +126,9 @@ class Topo:
         self.edges = [] 
         self.q = q
         self.alpha = a
-        self.L = L
         self.density = density
+        self.L = L
+        self.k = k
         self.sentinel = Node(-1, (-1.0, -1.0), -1, self)
         #---
         self.socialRelationship = {}    # {n: []}
@@ -191,7 +193,7 @@ class Topo:
         
         print('Average Length:', length / times)
 
-    def generate(n, q, a, degree, density, L):
+    def generate(n, q, a, degree, density, L, k):
         """
         Generate Topo object
 
@@ -209,11 +211,13 @@ class Topo:
         :type density: `float`
         :param L: for nexwork param
         :type L: `float`
+        :param k: ???
+        :type k: `int`
         """
         checker = TopoConnectionChecker()
         while True:
             G = nx.waxman_graph(n, beta=0.85, alpha=0.02, domain=(0, 0, 1, 2))
-            topo = Topo(G, q, a, degree, density, L)
+            topo = Topo(G, q, a, degree, density, L, k)
             checker.setTopo(topo)
             if checker.checkConnected():
                 break
@@ -247,6 +251,7 @@ class Topo:
         d = 0
         for a, b in zip(pos1, pos2):
             d += (a-b) ** 2
+
         return d ** 0.5
 
     def widthPhase2(self, path):
@@ -354,6 +359,7 @@ class Topo:
         
     def hopsAway(self, src, dst, Type):
         path = self.shortestPath(src, dst, Type)
+        
         return len(path[1]) - 1
 
     def genShortestPathTable(self, Type):

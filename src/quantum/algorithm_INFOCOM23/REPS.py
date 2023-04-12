@@ -472,9 +472,9 @@ class REPS(AlgorithmBase):
             nextNode = path[i + 1]
             width = min(width, self.fi_LP[SDpair][(currentNode, nextNode)])
         return width
-if __name__ == '__main__':
-    
-    topo = Topo.generate(100, 0.9, 2, 0.002, 6, 0.25, 15)
+        
+if __name__ == '__main__': 
+    topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 2)
     s = REPS(topo)
     result = AlgorithmResult()
     SDpairPerTime = 1

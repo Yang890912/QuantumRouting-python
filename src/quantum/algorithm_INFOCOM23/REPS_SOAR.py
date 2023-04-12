@@ -601,5 +601,4 @@ class REPS_SOAR(AlgorithmBase):
         return width
 
 if __name__ == '__main__':
-    
-    topo = Topo.generate(100, 0.9, 2, 0.002, 6, 0.5, 30)
+    topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 2)
