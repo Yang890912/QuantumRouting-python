@@ -218,7 +218,99 @@ class AlgorithmBase:
                         return path[-1]
                     else:
                         return path[0]
-            
+    
+    def OPPSwapped(self, path, links):
+        """
+            Linear swap
+            OPPSwapped() in trySwapped() for QCAST_OPP and GREEDY_OPP algos 
+
+            Return the farthest node on path after swapping
+            If the return not dst, then path constructed failed
+
+            :param path: the given path
+            :type path: `list`
+            :param links: links on path
+            :type links: `list`
+            :return: the farthest node on path after swapping
+            :rtype: `Node`
+        """
+        succNumOfLinks = 0
+
+        # Calculate the continuous successful number of links whether larger than k
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
+
+            if prevLink.entangled:
+                succNumOfLinks += 1
+            else:
+                break
+
+            if n == len(path)-2:
+                if nextLink.entangled:
+                    succNumOfLinks = self.topo.k
+
+        # If path is just length 2, check directly
+        if len(path) == 2:  
+            if links[0].entangled:
+                return path[1]
+            else:
+                return path[0]
+
+        # If succeed number of links is less than k, retrun src
+        if succNumOfLinks < self.topo.k:
+            return path[0]  
+        
+        # If succeed number of links is 1, retrun next hop to forword
+        if self.topo.k == 1:
+            if path[1].remainingQubits < 1:
+                pass
+            else:
+                path[1].remainingQubits -= 1
+                return path[1]  
+
+            # Can consume extra memory
+            # print(path[1].id, 'Qubit --')
+            # path[1].remainingQubits -= 1
+            # return path[1]  # Forward 1 hop
+
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
+            """
+                Check links whether swapped on node path[n], and run swapping
+
+                If not swapped then
+                    If swapped fail then clear the link state and return src
+                    If swapped successfully then 
+                        If path[n+1] satisfies k and has enough resources then forward to n+1 or dst
+                        Else return src 
+                Else
+                    continue
+            """
+            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not nextLink.swappedAt(path[n]):
+                if not path[n].attemptSwapping(prevLink, nextLink): 
+                    for link in links:
+                        if link.swapped():
+                            link.clearPhase4Swap() 
+                    return path[0]  
+                else:                                              
+                    if n+1 >= self.topo.k or n == len(path)-2: 
+                        # Next hop is terminal  
+                        if path[n+1] == path[-1]:   
+                            return path[-1]
+
+                        # If has not enough memory then return src
+                        if path[n+1].remainingQubits < 1:   
+                            return path[0]  
+                        else:
+                            path[n+1].remainingQubits -= 1
+                            return path[n+1]  
+                    else:   
+                        return path[0]   
+
+        return path[0]   
+
     def modifyResult(self, res):
         """
         Update the result

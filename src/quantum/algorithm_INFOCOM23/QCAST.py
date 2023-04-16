@@ -24,7 +24,7 @@ class QCAST(AlgorithmBase):
 
     def p2(self):
         """
-            P2
+            In P2, run algorithm
         """
         # Pre-prepare and initialize
         for req in self.srcDstPairs:
@@ -41,7 +41,7 @@ class QCAST(AlgorithmBase):
         if self.timeSlot % self.topo.L == 0:
             self.canEntangled = True
             while True: 
-                candidates = self.calCandidates(self.requests) # :type candidates: `list[PickedPath]``   
+                candidates = self.calCandidates(self.requests) # :type candidates: `list[PickedPath]` 
                 candidates = sorted(candidates, key=lambda x: x.weight)
                 if len(candidates) == 0:
                     break
@@ -245,7 +245,7 @@ class QCAST(AlgorithmBase):
 
     def p4(self):
         """
-            P4
+            In P4 will update lifetime of link
         """
         # Update links' lifetime       
         for req in self.requests:

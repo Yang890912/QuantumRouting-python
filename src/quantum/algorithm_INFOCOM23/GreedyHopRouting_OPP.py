@@ -1,13 +1,14 @@
 import sys
-from string import Template
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase, Request, Path
+from GreedyHopRouting import GreedyHopRouting
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
 from random import sample
+from string import Template
 
-class GreedyHopRouting_OPP(AlgorithmBase):
+class GreedyHopRouting_OPP(GreedyHopRouting):
     def __init__(self, topo):
         super().__init__(topo)
         self.name = 'Greedy_OPP'
@@ -18,76 +19,11 @@ class GreedyHopRouting_OPP(AlgorithmBase):
     def prepare(self):
         self.totalTime = 0
         self.requests.clear()
-    
-    def swapped(self, path, links):
-        succNumOfLinks = 0
-
-        # Calculate the continuous succeed number of links whether larger than k
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
-
-            if prevLink.entangled:
-                succNumOfLinks += 1
-            else:
-                break
-
-            if n == len(path)-2:
-                if nextLink.entangled:
-                    succNumOfLinks = self.topo.k
-
-        # If path just 2 length 
-        if len(path) == 2:  
-            if links[0].entangled:
-                return path[1]
-            else:
-                return path[0]
-
-        if succNumOfLinks < self.topo.k:
-            return path[0]  # Forward 0 hop
-        
-        if self.topo.k == 1:
-            if path[1].remainingQubits < 1:
-                # return path[0]  # Forward 0 hop
-                pass
-            else:
-                path[1].remainingQubits -= 1
-                return path[1]  # Forward 1 hop
-
-            # Can consume extra memory
-            # print(path[1].id, 'Qubit --')
-            # path[1].remainingQubits -= 1
-            # return path[1]  # Forward 1 hop
-
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
-
-            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not nextLink.swappedAt(path[n]):
-                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed 
-                    for link in links:
-                        if link.swapped():
-                            link.clearPhase4Swap() 
-                    return path[0]  # Forward 0 hop
-                else:                                               # Swap succeed 
-                    if n+1 >= self.topo.k or n == len(path)-2:   # satisfy k   
-                        if path[n+1] == path[-1]:   # next terminal
-                            return path[-1]
-
-                        if path[n+1].remainingQubits < 1:   # not enough memory
-                            return path[0]  # Forward 0 hop
-                        else:
-                            path[n+1].remainingQubits -= 1
-                            return path[n+1]  # Forward n+1 hop
-                    else:   
-                        return path[0]      # Forward 0 hop
-            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):
-                continue
-        
-        return path[0]
-    
+      
     def trySwapped(self):
-        # Swapped 
+        """
+            try swapped 
+        """
         reqUpdated = {req: 0 for req in self.requests}
         finished = []
         for req in self.requests:
@@ -108,7 +44,7 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 
                 _p = p[p.index(intermediate):len(p)]
                 _links = links[p.index(intermediate):len(p)-1]
-                arrive = self.swapped(_p, _links)
+                arrive = self.OPPSwapped(_p, _links)
 
                 if intermediate == arrive:
                     continue
@@ -159,8 +95,9 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                     link.clearEntanglement()
 
     def p2(self):
-        # self.pathsSortedDynamically.clear()
-
+        """
+            In P2, run algorithm
+        """
         # Pre-prepare and initialize
         for req in self.srcDstPairs:
             (src, dst) = req
@@ -172,108 +109,32 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         if len(self.requests) > 0:
             self.result.numOfTimeslot += 1
 
-        while True:
-            found = False   # Record this round whether find new path to allocate resources
+        self.greedyRouting()
 
-            # Find the shortest path and assign qubits for every srcDstPair
-            for req in self.requests:
-                src, dst, time = req.src, req.dst, req.time
-                p = []
-                p.append(src)
-
-                # If the req has binding links, continue
-                if req.state != 0:
-                    continue
-
-                # Find a shortest path by greedy min hop  
-                while True:
-                    last = p[-1]
-                    if last == dst:
-                        break
-
-                    # Select avaliable neighbors of last(local)
-                    selectedNeighbors = []    # type Node
-                    selectedNeighbors.clear()
-                    for neighbor in last.neighbors:
-                        if neighbor.remainingQubits > 2 or (neighbor == dst and neighbor.remainingQubits > 1):
-                            for link in neighbor.links:
-                                if link.contains(last) and (not link.assigned):
-                                    # print('select neighbor:', neighbor.id)
-                                    selectedNeighbors.append(neighbor)
-                                    break
-
-                    # Choose the neighbor with smallest number of hop from it to dst
-                    next = self.topo.sentinel
-                    hopsCurMinNum = sys.maxsize
-                    for selectedNeighbor in selectedNeighbors:
-                        hopsNum = self.topo.hopsAway(selectedNeighbor, dst, 'Hop')      
-                        if hopsCurMinNum > hopsNum and hopsNum != -1:
-                            hopsCurMinNum = hopsNum
-                            next = selectedNeighbor
-
-                    # If have cycle, break
-                    if next == self.topo.sentinel or next in p:
-                        break 
-                    p.append(next)
-                # while end
-
-                if p[-1] != dst:
-                    continue
-                
-                # Caculate width for p
-                width = self.topo.widthPhase2(p)
-              
-                if width <= 0:
-                    continue
-
-                found = True
-                               
-                for w in range(width):
-                    path = Path()
-                    path.path = p
-                    # Assign Qubits for links in path 
-                    for s in range(0, len(p) - 1):
-                        n1 = p[s]
-                        n2 = p[s+1]
-                        for link in n1.links:
-                            if link.contains(n2) and (not link.assigned):
-                                self.totalUsedQubits += 2
-                                link.assignQubits()
-                                path.links.append(link)
-                                break 
-                                         
-                    req.paths.append(path)  
-            # for end
-            if not found:
-                break
-        # while end
-      
         print(Template("[ $t ] P2 End").substitute(t=self.name))
     
     def p4(self):
-     
+        """
+            In P4 will update storage time and lifetime of link
+        """
         # Update storage time
         for req in self.requests:
             if req.intermediate != req.src:
                 req.storageTime += 1
             clear = False
-            # time out
+            # If time out, clear resources
             if req.storageTime > self.topo.L:
                 paths = req.paths
                 for path in paths:
-                    # clear links
+                    # Clear links
                     links = path.links
                     for link in links:
                         link.clearEntanglement()
-                    #clear intermediates
-                    if not clear:
+                    # Clear intermediates
+                    if not clear and req.intermediate:
                         req.intermediate.clearIntermediate()
-                        # print([x.id for x in path.path])
-                        # print('clear', req.intermediate.id)
-                        # print(req.intermediate.remainingQubits)
                         clear = True
-                # clear request' paths and reset
-                # print('reset')      
+                # Clear request' paths and reset state of request
                 req.paths.clear()    
                 req.state = 0
                 req.storageTime = 0
@@ -287,9 +148,9 @@ class GreedyHopRouting_OPP(AlgorithmBase):
                 for link in links:
                     if link.entangled == True:
                         link.lifetime += 1
-                    # time out
+                    # If time out, clear resources
                     if link.lifetime > self.topo.L:
-                        # link is swapped
+                        # If link is swapped, clear swapped
                         if link.swapped():
                             for link2 in links:
                                 if link2.swapped():
@@ -325,4 +186,29 @@ class GreedyHopRouting_OPP(AlgorithmBase):
         
 if __name__ == '__main__':
     topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 1)
+    a1 = GreedyHopRouting_OPP(topo)
+    samplesPerTime = 10
+    ttime = 200
+    rtime = 10
+    requests = {i : [] for i in range(ttime)}
+    memory = {}
+
+    # Record nodes' remainingqubits
+    for node in topo.nodes:
+        memory[node.id] = node.remainingQubits
+
+    # Generate requests
+    for i in range(ttime):
+        if i < rtime:
+            a = sample(topo.nodes, samplesPerTime)
+            for n in range(0,samplesPerTime,2):
+                requests[i].append((a[n], a[n+1]))
+    
+    # Run
+    for i in range(ttime):
+        a1.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
 

@@ -1,11 +1,11 @@
 import sys
-from string import Template
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase, Request, Path
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
 from random import sample
+from string import Template
 
 class GreedyHopRouting(AlgorithmBase):
     def __init__(self, topo):
@@ -51,7 +51,7 @@ class GreedyHopRouting(AlgorithmBase):
         # Delete the finished request
         for req in finished:
             if req in self.requests:
-                # print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
+                print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
                 self.totalTime += self.timeSlot - req.time
                 if req.broken:
                     self.totalNumOfBrokenReq += 1
@@ -66,9 +66,90 @@ class GreedyHopRouting(AlgorithmBase):
                 for link in links:
                     link.clearEntanglement()
     
+    def greedyRouting(self):
+        """
+            the Routing algorithm for GREEDY, GREEDY_OPP, GREEDY_SOAR
+        """
+        while True:
+            # Record this round whether find new path to allocate resources
+            found = False   
+
+            # Find the shortest path and assign qubits for every srcDstPair
+            for req in self.requests:
+                src, dst, time = req.src, req.dst, req.time
+                p = []
+                p.append(src)
+
+                # If the req has binding links, continue
+                if req.state != 0:
+                    continue
+
+                # Find a shortest path by greedy min hop  
+                while True:
+                    last = p[-1]
+                    if last == dst:
+                        break
+
+                    # Select avaliable neighbors of last(local)
+                    selectedNeighbors = []    # :type selectedNeighbors: `list[Node]`
+                    selectedNeighbors.clear()
+                    for neighbor in last.neighbors:
+                        if neighbor.remainingQubits > 2 or (neighbor == dst and neighbor.remainingQubits > 1):
+                            for link in neighbor.links:
+                                if link.contains(last) and (not link.assigned):
+                                    # print('select neighbor:', neighbor.id)
+                                    selectedNeighbors.append(neighbor)
+                                    break
+
+                    # Choose the neighbor with smallest number of hop from it to dst
+                    next = self.topo.sentinel
+                    hopsCurMinNum = sys.maxsize
+                    for selectedNeighbor in selectedNeighbors:
+                        hopsNum = self.topo.hopsAway(selectedNeighbor, dst, 'Hop')      
+                        if hopsCurMinNum > hopsNum and hopsNum != -1:
+                            hopsCurMinNum = hopsNum
+                            next = selectedNeighbor
+
+                    # If have cycle, break
+                    if next == self.topo.sentinel or next in p:
+                        break 
+                    p.append(next)
+                # while end
+
+                if p[-1] != dst:
+                    continue
+                
+                # Caculate width for p
+                width = self.topo.widthPhase2(p)
+            
+                if width <= 0:
+                    continue
+
+                found = True
+                
+                for w in range(width):
+                    path = Path()
+                    path.path = p
+                    # Assign Qubits for links in path 
+                    for s in range(0, len(p) - 1):
+                        n1 = p[s]
+                        n2 = p[s+1]
+                        for link in n1.links:
+                            if link.contains(n2) and (not link.assigned):
+                                self.totalUsedQubits += 2
+                                link.assignQubits()
+                                path.links.append(link)
+                                break 
+                                            
+                    req.paths.append(path)                
+            # for end
+            if not found:
+                break
+        # while end
+
     def p2(self):
         """
-            P2
+            In P2, run algorithm
         """
         # Pre-prepare and initialize
         for req in self.srcDstPairs:
@@ -81,85 +162,13 @@ class GreedyHopRouting(AlgorithmBase):
         if len(self.requests) > 0:
             self.result.numOfTimeslot += 1
 
+        # For tradition protocol, they just entangled less times
         self.canEntangled = False
 
         if self.timeSlot % self.topo.L == 0:
             self.canEntangled = True
-            while True:
-                found = False   # Record this round whether find new path to allocate resources
-
-                # Find the shortest path and assign qubits for every srcDstPair
-                for req in self.requests:
-                    src, dst, time = req.src, req.dst, req.time
-                    p = []
-                    p.append(src)
-
-                    # If the req has binding links, continue
-                    if req.state != 0:
-                        continue
-
-                    # Find a shortest path by greedy min hop  
-                    while True:
-                        last = p[-1]
-                        if last == dst:
-                            break
-
-                        # Select avaliable neighbors of last(local)
-                        selectedNeighbors = []    # :type selectedNeighbors: `list[Node]`
-                        selectedNeighbors.clear()
-                        for neighbor in last.neighbors:
-                            if neighbor.remainingQubits > 2 or (neighbor == dst and neighbor.remainingQubits > 1):
-                                for link in neighbor.links:
-                                    if link.contains(last) and (not link.assigned):
-                                        # print('select neighbor:', neighbor.id)
-                                        selectedNeighbors.append(neighbor)
-                                        break
-
-                        # Choose the neighbor with smallest number of hop from it to dst
-                        next = self.topo.sentinel
-                        hopsCurMinNum = sys.maxsize
-                        for selectedNeighbor in selectedNeighbors:
-                            hopsNum = self.topo.hopsAway(selectedNeighbor, dst, 'Hop')      
-                            if hopsCurMinNum > hopsNum and hopsNum != -1:
-                                hopsCurMinNum = hopsNum
-                                next = selectedNeighbor
-
-                        # If have cycle, break
-                        if next == self.topo.sentinel or next in p:
-                            break 
-                        p.append(next)
-                    # while end
-
-                    if p[-1] != dst:
-                        continue
-                    
-                    # Caculate width for p
-                    width = self.topo.widthPhase2(p)
+            self.greedyRouting()
                 
-                    if width <= 0:
-                        continue
-
-                    found = True
-                    
-                    for w in range(width):
-                        path = Path()
-                        path.path = p
-                        # Assign Qubits for links in path 
-                        for s in range(0, len(p) - 1):
-                            n1 = p[s]
-                            n2 = p[s+1]
-                            for link in n1.links:
-                                if link.contains(n2) and (not link.assigned):
-                                    self.totalUsedQubits += 2
-                                    link.assignQubits()
-                                    path.links.append(link)
-                                    break 
-                                              
-                        req.paths.append(path)                
-                # for end
-                if not found:
-                    break
-       
         print(Template("[ $t ] P2 End").substitute(t=self.name))
     
     def p4(self):
