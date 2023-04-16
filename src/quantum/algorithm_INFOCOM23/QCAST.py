@@ -6,6 +6,7 @@ from topo.Topo import Topo
 from topo.Node import Node 
 from topo.Link import Link
 from random import sample
+from string import Template
 import copy
 
 class QCAST(AlgorithmBase):
@@ -13,7 +14,6 @@ class QCAST(AlgorithmBase):
         super().__init__(topo)
         self.name = "QCAST"
         self.requests = []
-
         self.totalTime = 0
         self.totalUsedQubits = 0
         self.totalNumOfReq = 0
@@ -22,8 +22,10 @@ class QCAST(AlgorithmBase):
         self.totalTime = 0
         self.requests.clear()
 
-    # P2
     def p2(self):
+        """
+            P2
+        """
         # Pre-prepare and initialize
         for req in self.srcDstPairs:
             (src, dst) = req
@@ -39,43 +41,53 @@ class QCAST(AlgorithmBase):
         if self.timeSlot % self.topo.L == 0:
             self.canEntangled = True
             while True: 
-                candidates = self.calCandidates(self.requests) # candidates -> [PickedPath, ...]   
+                candidates = self.calCandidates(self.requests) # :type candidates: `list[PickedPath]``   
                 candidates = sorted(candidates, key=lambda x: x.weight)
                 if len(candidates) == 0:
                     break
-                pick = candidates[-1]   # pick -> PickedPath 
+                pick = candidates[-1]   # :type pick: `PickedPath`
 
                 if pick.weight > 0.0: 
                     self.pickAndAssignPath(pick)
                 else:
                     break
     
-        print('[', self.name, '] P2 End')
+        print(Template("[ $t ] P2 End").substitute(t=self.name))
 
-    # Calculate the candidate path for each requests 
-    def calCandidates(self, requests: list): # pairs -> [(Node, Node), ...]
+    def calCandidates(self, requests): 
+        """
+            Calculate the candidate path for each requests 
+
+            :return: the candidate path for each requests
+            :rtype: `list[PickedPath]`
+            :param requests: the requets
+            :type requests: `list[(Node,Node)]`
+        """
         candidates = [] 
         for req in requests:
             candidate = []
             src, dst, time = req.src, req.dst, req.time
             maxM = min(src.remainingQubits, dst.remainingQubits)
-            if maxM == 0:   # not enough qubit
-                continue
-            
-            if req.state != 0:   # If the req has binding links, continue
+            # If not enough qubit
+            if maxM == 0:   
                 continue
 
-            for w in range(maxM, 0, -1): # w = maxM, maxM-1, maxM-2, ..., 1
+            # If the req has binding links, continue
+            if req.state != 0:  
+                continue
+
+            # w = maxM, maxM-1, maxM-2, ..., 1
+            for w in range(maxM, 0, -1): 
                 failNodes = []
 
-                # collect failnodes (they dont have enough Qubits for SDpair in width w)
+                # Collect fail nodes (they dont have enough Qubits for SDpair in width w)
                 for node in self.topo.nodes:
                     if node.remainingQubits < 2 * w and node != src and node != dst:
                         failNodes.append(node)
 
-                edges = {}  # edges -> {(Node, Node): [Link, ...], ...}
+                edges = {}  # :type edges: `dict{(Node, Node): list[Link]}`
 
-                # collect edges with links 
+                # Collect edges with links 
                 for link in self.topo.links:
                     # if link.n2.id < link.n1.id:
                     #     link.n1, link.n2 = link.n2, link.n1
@@ -84,9 +96,9 @@ class QCAST(AlgorithmBase):
                             edges[(link.n1, link.n2)] = []
                         edges[(link.n1, link.n2)].append(link)
 
-                neighborsOf = {node: [] for node in self.topo.nodes} # neighborsOf -> {Node: [Node, ...], ...}
+                neighborsOf = {node: [] for node in self.topo.nodes} # :type neighborsOf: `dict{Node: list[Node]}`
 
-                # filter available links satisfy width w
+                # Filter available links satisfy width w
                 for edge in edges:
                     links = edges[edge]
                     if len(links) >= w:
@@ -97,7 +109,7 @@ class QCAST(AlgorithmBase):
                 if (len(neighborsOf[src]) == 0 or len(neighborsOf[dst]) == 0):
                     continue
 
-                prevFromSrc = {}   # prevFromSrc -> {cur: prev}
+                prevFromSrc = {}   # :type prevFromSrc: `dict{cur: prev}`
 
                 def getPathFromSrc(n): 
                     path = []
@@ -107,8 +119,10 @@ class QCAST(AlgorithmBase):
                         cur = prevFromSrc[cur]
                     return path
                 
-                E = {node.id : [-sys.float_info.max, [0.0 for _ in range(0,w+1)]] for node in self.topo.nodes}  # E -> {Node id: [Int, [double, ...]], ...}
-                q = []  # q -> [(E, Node, Node), ...]
+                # :type E: `dict{Node id: list[int, list[double]]}`
+                # :type q: `list[(E, Node, Node)]`
+                E = {node.id : [-sys.float_info.max, [0.0 for _ in range(0,w+1)]] for node in self.topo.nodes}  
+                q = []  
 
                 E[src.id] = [sys.float_info.max, [0.0 for _ in range(0,w+1)]]
                 q.append((E[src.id][0], src, self.topo.sentinel))
@@ -116,7 +130,8 @@ class QCAST(AlgorithmBase):
 
                 # Dijkstra by EXT
                 while len(q) != 0:
-                    contain = q.pop(-1) # Pop the node with the highest E
+                    # Pop the node with the highest E
+                    contain = q.pop(-1) 
                     u, prev = contain[1], contain[2]
                     if u in prevFromSrc.keys():
                         continue
@@ -142,7 +157,7 @@ class QCAST(AlgorithmBase):
                             q = sorted(q, key=lambda q: q[0])
                 # Dijkstra end
 
-                # IF this SD-pair find a path, go on solving the next SD-pair 
+                # If this SD-pair find a path, go on solving the next SD-pair 
                 if len(candidate) > 0:
                     candidates += candidate
                     break
@@ -150,8 +165,15 @@ class QCAST(AlgorithmBase):
         # for pairs end
         return candidates
 
-    def pickAndAssignPath(self, pick: PickedPath, majorPath: PickedPath = None):
-     
+    def pickAndAssignPath(self, pick, majorPath=None):
+        """
+            Pick and assign resources for paths for request
+
+            :param pick: the picked path
+            :type pick: `PickedPath`
+            :param majorPath: if QCAST find recovery path, then will use it
+            :type majorPath: `PickedPath`     
+        """
         width = pick.width
         time = pick.time
         request = None
@@ -177,41 +199,7 @@ class QCAST(AlgorithmBase):
                                        
             request.paths.append(path)
  
-    def swapped(self, path, links):
-        # Calculate the continuous all succeed links 
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
-
-            if not prevLink.entangled:
-                return path[0]
-
-        if len(path) == 2:  # If path just 2 length 
-            if not links[0].entangled:
-                return path[0]
-            else:
-                return path[1]
-              
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
-
-            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not nextLink.swappedAt(path[n]):
-                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
-                    for link in links:
-                        if link.swapped():
-                            link.clearPhase4Swap() 
-                    return path[0]  # Forward 0 hop
-                else:       
-                    if n == len(path)-2:    # Swap succeed and the next hop is terminal than forward to it
-                        return path[-1]
-                    else:   
-                        return path[0]  # Forward 0 hop
-            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):
-                continue
-    
     def trySwapped(self):
-        # Swapped 
         finished = []
         for req in self.requests:
             paths = req.paths
@@ -224,7 +212,7 @@ class QCAST(AlgorithmBase):
             for path in paths:
                 p = path.path
                 links = path.links
-                arrive = self.swapped(p, links)
+                arrive = self.traditionSwapped(p, links)
 
                 if req.dst == arrive:
                     finished.append(req)
@@ -256,7 +244,9 @@ class QCAST(AlgorithmBase):
                     link.clearEntanglement()
 
     def p4(self):
-
+        """
+            P4
+        """
         # Update links' lifetime       
         for req in self.requests:
             paths = req.paths
@@ -285,7 +275,6 @@ class QCAST(AlgorithmBase):
 
         # Calculate the remaining time for unfinished SD-pairs
         remainTime = 0
-        print('[', self.name, '] Remain Requests:', len(self.requests))
         for remainReq in self.requests:
             remainTime += self.timeSlot - remainReq.time
 
@@ -294,12 +283,37 @@ class QCAST(AlgorithmBase):
         self.result.waitingTime = (self.totalTime + remainTime) / self.totalNumOfReq + 1
         self.result.usedQubits = self.totalUsedQubits / self.totalNumOfReq
 
-        print('[', self.name, '] Waiting Time:', self.result.waitingTime)
-        print('[', self.name, '] Idle Time:', self.result.idleTime)
-        print('[', self.name, '] P4 End')
+        print(Template("[ $t ] Remain Requests: ${a}").substitute(t=self.name, a=len(self.requests)))
+        print(Template("[ $t ] Waiting Time: ${a}").substitute(t=self.name, a=self.result.waitingTime))
+        print(Template("[ $t ] P4 End").substitute(t=self.name))
 
         return self.result
 
 if __name__ == '__main__':
     topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 1)
+    a1 = QCAST(topo)
+    samplesPerTime = 10
+    ttime = 200
+    rtime = 10
+    requests = {i : [] for i in range(ttime)}
+    memory = {}
+
+    # Record nodes' remainingqubits
+    for node in topo.nodes:
+        memory[node.id] = node.remainingQubits
+
+    # Generate requests
+    for i in range(ttime):
+        if i < rtime:
+            a = sample(topo.nodes, samplesPerTime)
+            for n in range(0,samplesPerTime,2):
+                requests[i].append((a[n], a[n+1]))
+    
+    # Run
+    for i in range(ttime):
+        a1.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)
 

@@ -48,7 +48,7 @@ class Link:
         """
         Return whether node n is on link
 
-        :return: whether node n is on link
+        :return: True if node n is on link
         :rtype: `bool`
         :param n: the node we know
         :type n: `Node`
@@ -57,9 +57,9 @@ class Link:
 
     def swappedAt(self, n): 
         """
-        Return whether node n on link swapped
+        Return whether node n on link is swapped
 
-        :return: whether node n on link swapped
+        :return: True if node n on link is swapped
         :rtype: `bool`
         :param n: the node we know
         :type n: `Node`
@@ -68,9 +68,9 @@ class Link:
 
     def swappedAtTheOtherEndOf(self, n):  
         """
-        Return whether the other node on link swapped 
+        Return whether the other node on link is swapped 
 
-        :return: whether the other node on link swapped 
+        :return: True if the other node on link is swapped 
         :rtype: `bool`
         :param n: the node we know
         :type n: `Node`
@@ -81,7 +81,7 @@ class Link:
         """
         Return link whether swapped 
 
-        :return: link whether swapped 
+        :return: True if link is swapped 
         :rtype: `bool`
         """ 
         return self.s1 or self.s2
@@ -90,7 +90,7 @@ class Link:
         """
         Return link whether not swapped 
 
-        :return: link whether not swapped 
+        :return: True if link is not swapped 
         :rtype: `bool`
         """ 
         return not self.swapped()
@@ -106,7 +106,7 @@ class Link:
   
     def clearEntanglement(self):
         """
-        Clear entanglement on link
+        Clear entanglement state on link
 
         """ 
         preState = self.assigned
@@ -130,7 +130,7 @@ class Link:
     
     def clearPhase4Swap(self):
         """
-        Clear Swap on link
+        Clear Swap state on link
 
         """ 
         self.s1 = False
@@ -150,7 +150,7 @@ class Link:
         """
         Try entanglement on link
 
-        :return: entanglement whether success
+        :return: True if entanglement success
         :rtype: `bool`
         """ 
         b = (self.assigned and self.p >= random.random()) or self.entangled
@@ -162,7 +162,7 @@ class Link:
         """
         Return whether the link is assignable
 
-        :return: whether the link is assignable
+        :return: True if the link is assignable
         :rtype: `bool`
         """  
         return not self.assigned and self.n1.remainingQubits > 0 and self.n2.remainingQubits > 0

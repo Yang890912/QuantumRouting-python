@@ -19,45 +19,9 @@ class GreedyHopRouting(AlgorithmBase):
         self.totalTime = 0
         self.requests.clear()
 
-    def swapped(self, path, links):
-        """
-            swapped
-        """
-        # Calculate the continuous all succeed links 
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
-
-            if not prevLink.entangled:
-                return path[0]
-
-        if len(path) == 2:  # If path just 2 length 
-            if not links[0].entangled:
-                return path[0]
-            else:
-                return path[1]
-              
-        for n in range(1, len(path)-1):
-            prevLink = links[n-1]
-            nextLink = links[n]
-
-            if prevLink.entangled and not prevLink.swappedAt(path[n]) and nextLink.entangled and not nextLink.swappedAt(path[n]):
-                if not path[n].attemptSwapping(prevLink, nextLink): # Swap failed than clear the link state
-                    for link in links:
-                        if link.swapped():
-                            link.clearPhase4Swap() 
-                    return path[0]  # Forward 0 hop
-                else:       
-                    if n == len(path)-2:    # Swap succeed and the next hop is terminal than forward to it
-                        return path[-1]
-                    else:   
-                        return path[0]  # Forward 0 hop
-            elif prevLink.entangled and prevLink.swappedAt(path[n]) and nextLink.entangled and nextLink.swappedAt(path[n]):
-                continue
-    
     def trySwapped(self):
         """
-            try swapped
+            try swapped 
         """
         finished = []
         for req in self.requests:
@@ -71,7 +35,7 @@ class GreedyHopRouting(AlgorithmBase):
             for path in paths:
                 p = path.path
                 links = path.links
-                arrive = self.swapped(p, links)
+                arrive = self.traditionSwapped(p, links)
 
                 if req.dst == arrive:
                     finished.append(req)
@@ -87,7 +51,7 @@ class GreedyHopRouting(AlgorithmBase):
         # Delete the finished request
         for req in finished:
             if req in self.requests:
-                print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
+                # print('[', self.name, '] Finished Requests:', req.src.id, req.dst.id, req.time)
                 self.totalTime += self.timeSlot - req.time
                 if req.broken:
                     self.totalNumOfBrokenReq += 1
@@ -141,7 +105,7 @@ class GreedyHopRouting(AlgorithmBase):
                             break
 
                         # Select avaliable neighbors of last(local)
-                        selectedNeighbors = []    # type Node
+                        selectedNeighbors = []    # :type selectedNeighbors: `list[Node]`
                         selectedNeighbors.clear()
                         for neighbor in last.neighbors:
                             if neighbor.remainingQubits > 2 or (neighbor == dst and neighbor.remainingQubits > 1):
@@ -246,4 +210,28 @@ class GreedyHopRouting(AlgorithmBase):
         
 if __name__ == '__main__':
     topo = Topo.generate(30, 0.9, 0.002, 6, 0.5, 15, 1)
-   
+    a1 = GreedyHopRouting(topo)
+    samplesPerTime = 10
+    ttime = 200
+    rtime = 10
+    requests = {i : [] for i in range(ttime)}
+    memory = {}
+
+    # Record nodes' remainingqubits
+    for node in topo.nodes:
+        memory[node.id] = node.remainingQubits
+
+    # Generate requests
+    for i in range(ttime):
+        if i < rtime:
+            a = sample(topo.nodes, samplesPerTime)
+            for n in range(0,samplesPerTime,2):
+                requests[i].append((a[n], a[n+1]))
+    
+    # Run
+    for i in range(ttime):
+        a1.work(requests[i], i)
+
+    for node in topo.nodes:
+        if memory[node.id] != node.remainingQubits:
+            print(node.id, memory[node.id]-node.remainingQubits)

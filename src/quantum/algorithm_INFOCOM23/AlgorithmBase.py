@@ -103,9 +103,13 @@ class Request:
         :type dst: `Node`
         :param time: entering time for request
         :type time: `int`
-        :param intermediate: old result
+        :param intermediate: the intermediate node for request
         :type intermediate: `Node`
         """
+        #
+        #
+        # CImark: Whether calculate the number of intermediate node on path for this request
+        #
         self.src = src
         self.dst = dst
         self.time = time
@@ -121,7 +125,7 @@ class Request:
 class Path:
     def __init__(self):
         """
-        Initialize Path
+        Initialize Path 
 
         """
         self.path = []
@@ -141,10 +145,10 @@ class AlgorithmBase:
         self.totalNumOfBrokenReq = 0    # Total number of peeping requests
         self.totalNumOfSecureReq = 0    # Total number of secure requests
         self.totalNumOfIntermediate = 0 # Total number of intermediates
-        self.totalNumOfNormalNodeOnPath = 0 # Total number of normal nodes
+        self.totalNumOfNormalNodeOnPath = 0 # Total number of normal nodes on all paths
         self.totalNumOfTemporary = 0    # Total number of temporary counts
         self.idleTime = 0   # Total idle time
-        self.numOfTimeOut = 0   # Total timeout
+        self.numOfTimeOut = 0   # Total number of timeout requests
         self.doubleEntangled = ["SAGE", "QCAST_SOAR", "Greedy_SOAR", "REPS_SOAR"]
         self.doubleSwapped = ["SAGE", "QCAST_SOAR", "Greedy_SOAR", "REPS_SOAR", "Greedy", "QCAST", "REPS"]
         
@@ -164,6 +168,57 @@ class AlgorithmBase:
         for link in self.topo.links:
             link.tryEntanglement()
     
+    def traditionSwapped(self, path, links):
+        """
+            Linear swap
+            traditionSwapped() in trySwapped() for QCAST and GREEDY algos 
+
+            Return the farthest node on path after swapping
+            If the return not dst, then path constructed failed
+
+            :param path: the given path
+            :type path: `list`
+            :param links: links on path
+            :type links: `list`
+            :return: the farthest node on path after swapping
+            :rtype: `Node`
+        """
+        # Calculate the continuous all succeed links 
+        # Check entanglement on path are all successful
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
+
+            if not prevLink.entangled:
+                return path[0]
+
+        # If path is just length 2, check directly 
+        if len(path) == 2:  
+            if not links[0].entangled:
+                return path[0]
+            else:
+                return path[1]
+
+        # Run swapping and check whether successful
+        for n in range(1, len(path)-1):
+            prevLink = links[n-1]
+            nextLink = links[n]
+
+            # If not swapped then run swapped, else continue
+            #   If swap failed then clear the link state and return src
+            #   If swap succeed and the next hop is terminal then return dst, else return src
+            if not prevLink.swappedAt(path[n]) and not nextLink.swappedAt(path[n]):
+                if not path[n].attemptSwapping(prevLink, nextLink): 
+                    for link in links:
+                        if link.swapped():
+                            link.clearPhase4Swap() 
+                    return path[0]  
+                else:       
+                    if n == len(path)-2:    
+                        return path[-1]
+                    else:
+                        return path[0]
+            
     def modifyResult(self, res):
         """
         Update the result
