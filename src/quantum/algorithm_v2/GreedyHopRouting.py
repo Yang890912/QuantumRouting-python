@@ -68,7 +68,7 @@ class GreedyHopRouting(AlgorithmBase):
     
     def greedyRouting(self):
         """
-            the Routing algorithm for GREEDY, GREEDY_OPP, GREEDY_SOAR
+            the Routing algorithm for GREEDY, GREEDY_OPP
         """
         while True:
             # Record this round whether find new path to allocate resources

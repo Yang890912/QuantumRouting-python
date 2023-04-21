@@ -1,13 +1,14 @@
 import sys
-from string import Template
 sys.path.append("..")
 from AlgorithmBase import AlgorithmBase, Request, Path
+from GreedyHopRouting import GreedyHopRouting
 from topo.Topo import Topo 
 from topo.Node import Node 
 from topo.Link import Link
 from random import sample
+from string import Template
 
-class GreedyHopRouting_SOAR(AlgorithmBase):
+class GreedyHopRouting_SOAR(GreedyHopRouting):
     def __init__(self, topo):
         super().__init__(topo)
         self.name = "Greedy_SOAR"
@@ -219,7 +220,7 @@ class GreedyHopRouting_SOAR(AlgorithmBase):
         
     def p2(self):
         """             
-            P2
+            In P2, run algorithm
         """  
         # Pre-prepare and initialize
         for req in self.srcDstPairs:
@@ -234,7 +235,8 @@ class GreedyHopRouting_SOAR(AlgorithmBase):
             self.result.numOfTimeslot += 1
 
         while True:
-            found = False   # Record this round whether find new path to allocate resources
+            # Record this round whether find new path to allocate resources
+            found = False   
 
             # Find the shortest path and assign qubits for every srcDstPair
             for req in self.requests:
@@ -317,12 +319,12 @@ class GreedyHopRouting_SOAR(AlgorithmBase):
             # for end
             if not found:
                 break
-             
+        # while end  
         print(Template("[ $t ] P2 End").substitute(t=self.name))
     
     def p4(self):
         """             
-            P4 
+            In P4 will forward, update storage time and lifetime of link 
         """  
         self.tryForward()
 
@@ -335,19 +337,19 @@ class GreedyHopRouting_SOAR(AlgorithmBase):
             if req.storageTime > self.topo.L:
                 paths = req.paths
                 for path in paths:
-                    # clear links
+                    # Clear links
                     links = path.links
                     for link in links:
                         link.clearEntanglement()
-                    # clear intermediates
+                    # Clear intermediates
                     if not clear:
                         req.intermediate.clearIntermediate()
-                        print([x.id for x in path.path])
-                        print('clear', req.intermediate.id)
-                        print(req.intermediate.remainingQubits)
+                        # print([x.id for x in path.path])
+                        # print('clear', req.intermediate.id)
+                        # print(req.intermediate.remainingQubits)
                         clear = True
-                # clear request' paths and reset
-                print('reset') 
+                # Clear request' paths and reset
+                # print('reset') 
                 self.numOfTimeOut += 1     
                 req.paths.clear()    
                 req.state = 0

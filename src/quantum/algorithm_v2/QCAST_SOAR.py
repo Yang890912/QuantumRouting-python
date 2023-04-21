@@ -16,7 +16,6 @@ class QCAST_SOAR(QCAST):
         self.name = "QCAST_SOAR"
         self.requests = []
         self.mark= {}
-
         self.totalTime = 0
         self.totalUsedQubits = 0
         self.totalNumOfReq = 0
